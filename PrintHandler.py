@@ -6,7 +6,8 @@ from PrintWindow import *
 class PrintHandler:
     def __init__(self,config):
         self.layers = []
-        self.config = config
+        self.started = False
+        self.setConfig(config)
     def createWindow(self, x, y, w, h):
         self.window = PrintWindow()
         self.window.startPrint(x, y, w, h)
@@ -22,11 +23,37 @@ class PrintHandler:
         self.printing = False
         self.startingExposureTime = 0.8
         self.startingLayers = 3
+    def setViewport(self, x, y, w, h):
+        self.viewport = {'x':x, 'y':y, 'width':w, 'height':h}
+    def setConfig(self, config):
+        self.config = config
+        
+        
     def setController(self, conn):
         self.conn = conn
-    def startPrint(self, autoScaleCenter = True):
-        self.setAutoScaleCenter()
+        self.conn.bind('move-complete', self._moveComplete)
+    def setWindow(self, window):
+        self.window = window
+    def startPrint(self, autoScaleCenter = False):
+        if autoScaleCenter:
+            self.setAutoScaleCenter()
 		
+        self.layerHeight = self.config.get('layerHeight')
+        self.exposureTime = self.config.get('exposureTime') / 1000
+        self.startingExposureTime = self.config.get('startingExposureTime') / 1000
+        self.startingLayers = self.config.get('startingLayers')
+        self.zRetract = self.config.get('retractDistance')
+        self.zRetractSpeed = self.config.get('retractSpeed')
+        self.postPause = self.config.get('postPause') / 1000
+        
+        sxy = float(self.config.get('pixelsPerMM')) / 10
+        self.setScale(sxy, sxy)
+        
+        dim = self.getPrintDimensions()
+        self.offsetX = (self.viewport['width'] - (self.scaleX * dim['width'])) / 2
+        self.offsetY = (self.viewport['height'] - (self.scaleY * dim['height'])) / 2
+        self.started = True
+        
         self.currentLayer = -1
         self.nextLayer()
     def setAutoScaleCenter(self):
@@ -79,15 +106,30 @@ class PrintHandler:
                     shape['points'][int(i)] = shape['points'][int(i)] * self.scaleY + self.offsetY
             self.window.drawShape(shape['points'], shape['color'])
         self.window.update()
-        time.sleep(.5)
-        self.curePause()
+        Thread(target=self._exposureWait).start()
+    def _moveComplete(self):
+        if self.started is not True:
+            return
+        if self.retracted == True:
+            self.retracted = False
+            self.conn.write('G1 Z' + str(self.zRetract - self.layerHeight) +' F' + str(self.zRetractSpeed))
+        elif self.retracted == False:
+            self.nextLayer()
+    def _exposureWait(self):
+        time.sleep(self.exposureTime)
+        if self.postPause > 0:
+            self.curePause()
+        elif self.postPause == 0:
+            self.retractMove()
     def curePause(self):
         self.window.clear()
         self.window.update()
-        time.sleep(.3)
-        self.conn.write(b'G1 Z50 F300')
-        time.sleep(.2)
-        self.nextLayer()
+        time.sleep(self.postPause)
+        self.retractMove()
+    def retractMove(self):
+        self.retracted = True
+        self.conn.write('G1 Z-' + str(self.zRetract) +' F' + str(self.zRetractSpeed))
+        
     def getPrintDimensions(self):
         dim = {'x':False, 'y':False, 'width':False, 'height':False}
         for layer in self.layers:

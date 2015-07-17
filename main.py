@@ -71,8 +71,15 @@ def stop_print():
         printWindow.destroy()
 def start_print():
     if monitorSelect.current() >= 0:
+        '''
         handler.createWindow(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
         handler.connectController(comPorts[comSelect.current()][0], 9600)
+        '''
+        
+        handler.setController(serialConn)
+        handler.setConfig(config)
+        handler.setWindow(printWindow)
+        handler.setViewport(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
         handler.startPrint()
     else:
         messagebox.showerror("Display error", "No display selected")

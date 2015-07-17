@@ -1,4 +1,6 @@
-from tkinter import Tk
+from tkinter import *
+from tkinter.ttk import Separator
+from math import *
 
 class MonitorConfig(Tk):
     def __init__(self, monitorID, mW, mH, window, config):
@@ -79,6 +81,7 @@ class MonitorConfig(Tk):
         dState = self.drawState.set('grid')
         self.validateDim(self.pxMM, self.pxPerMM)
         
+        self.config.set('pixelsPerMM', self.pxMM.get())
         self.redraw()
     def areaChanged(self, *args):
         dState = self.drawState.set('area')
@@ -88,6 +91,7 @@ class MonitorConfig(Tk):
         self.posYText['to'] = int(self.heightText['to']) - int(self.pH.get())
         self.validateDim(self.pX, self.posXText)
         self.validateDim(self.pY, self.posYText)
+        
         
         self.redraw()
     def redraw(self, *args):

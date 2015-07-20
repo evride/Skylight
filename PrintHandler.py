@@ -30,6 +30,7 @@ class PrintHandler:
         
         
     def setController(self, conn):
+        print("setController")
         self.conn = conn
         self.conn.bind('move-complete', self._moveComplete)
     def setWindow(self, window):
@@ -42,7 +43,7 @@ class PrintHandler:
         self.exposureTime = self.config.get('exposureTime') / 1000
         self.startingExposureTime = self.config.get('startingExposureTime') / 1000
         self.startingLayers = self.config.get('startingLayers')
-        self.zRetract = self.config.get('retractDistance')
+        self.zRetract = self.config.get('retractDistance') / 100
         self.zRetractSpeed = self.config.get('retractSpeed')
         self.postPause = self.config.get('postPause') / 1000
         
@@ -56,6 +57,7 @@ class PrintHandler:
         
         self.currentLayer = -1
         self.nextLayer()
+        self.window.mainloop()
     def setAutoScaleCenter(self):
         printDim = self.getPrintDimensions()
         self.offsetX = 10
@@ -107,16 +109,19 @@ class PrintHandler:
             self.window.drawShape(shape['points'], shape['color'])
         self.window.update()
         Thread(target=self._exposureWait).start()
-    def _moveComplete(self):
+    def _moveComplete(self, evt):
+        print("move Complete", self.started, self.retracted)
         if self.started is not True:
             return
         if self.retracted == True:
             self.retracted = False
-            self.conn.write('G1 Z' + str(self.zRetract - self.layerHeight) +' F' + str(self.zRetractSpeed))
+            self.conn.moveZ(-self.zRetract + self.layerHeight, self.zRetractSpeed)
         elif self.retracted == False:
             self.nextLayer()
     def _exposureWait(self):
+        print("exposureTime", self.exposureTime)
         time.sleep(self.exposureTime)
+        self.window.clear()
         if self.postPause > 0:
             self.curePause()
         elif self.postPause == 0:
@@ -124,11 +129,13 @@ class PrintHandler:
     def curePause(self):
         self.window.clear()
         self.window.update()
+        print("postPause", self.postPause)
         time.sleep(self.postPause)
         self.retractMove()
     def retractMove(self):
         self.retracted = True
-        self.conn.write('G1 Z-' + str(self.zRetract) +' F' + str(self.zRetractSpeed))
+        print("retractMove", self.zRetract, self.zRetractSpeed)
+        self.conn.moveZ(self.zRetract, self.zRetractSpeed)
         
     def getPrintDimensions(self):
         dim = {'x':False, 'y':False, 'width':False, 'height':False}

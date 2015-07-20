@@ -41,10 +41,12 @@ class PrinterSerial(Serial):
         currBytes = self.read(self.inWaiting())
         newlineRegex = re.compile(b"(\r\n|\n)")
         
-        if re.match(b'grbl', currBytes) is not None:
+        print(currBytes, re.search(b'grbl(?i)', currBytes))
+        if re.search(b'grbl(?i)', currBytes) is not None:
+            print("matched grbl")
             self.detected = True
-            self.statusRequest = "$"
-            self.readyMsg = b"idle"
+            self.statusRequest = "?"
+            self.readyMsg = b"idle(?i)"
             self.readyRegex = re.compile(self.readyMsg)
             self.dispatch('connected')
             return
@@ -122,6 +124,8 @@ class PrinterSerial(Serial):
     def write(self, command):
         super(PrinterSerial, self).write(str(command + "\n").encode("ASCII"))# + self.messageEnd)
     def moveZ(self, distance, speed=1500):
+        distance = float(distance)
+        speed = float(speed)
         self.busy = True
         '''
             Temporary force speed to prevent issues
@@ -144,14 +148,14 @@ class PrinterSerial(Serial):
         if self.statusRequest != False:
             self.clearBuffer()
             while moveCompleted == False:
-                self.write("$")
-                time.sleep(.03)
+                self.write(self.statusRequest)
+                time.sleep(.01)
                 status = self.readline()
                 if re.search(self.readyRegex, status) is not None:
                     moveCompleted = True
         self.busy = False
         self.dispatch("move-complete")
-    def clearBuffer():
+    def clearBuffer(self):
         if self.inWaiting() >= 1:
             self.read(self.inWaiting())
     def bind(self, event, func):

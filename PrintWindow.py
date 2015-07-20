@@ -8,7 +8,7 @@ class PrintWindow(Tk):
         self.canvas.config(insertwidth=0)
         self.canvas.config(selectborderwidth=0)
         self.canvas.config(highlightthickness=0)
-        
+        self.canvas.config(background="#000000")
         self.configure(background="#000000")
         
         self.updateDimensions(x, y, w, h)
@@ -23,7 +23,6 @@ class PrintWindow(Tk):
         self.canvas.config(cursor="none")        
     def clear(self):
         self.canvas.delete('all')
-        self.canvas.create_rectangle(0,0, self.dimensions[2], self.dimensions[3], fill="#000000")
     def drawShape(self, points, color):
         self.canvas.create_polygon(*points, fill=color, outline=color)
     def updateDimensions(self, x, y, w, h):

@@ -3,35 +3,24 @@ import xml.etree.ElementTree as ET
 import re
 import time
 from PrintWindow import *
+from Configuration import *
+from PrinterSerial import *
 class PrintHandler:
-    def __init__(self,config):
+    def __init__(self):
         self.layers = []
+        self.conn = None
+        self.window = None
+        self.config = Configuration()
         self.started = False
-        self.setConfig(config)
-    def createWindow(self, x, y, w, h):
-        self.window = PrintWindow()
-        self.window.startPrint(x, y, w, h)
+    def showWindow(self, x, y, w, h):
+        if self.window == None:
+            self.window = PrintWindow(x,y,w,h)
+        else:
+            self.window.updateDimensions(x,y,w,h)
+        self.window.clear()
         self.viewport = {'x':x, 'y':y, 'width':w, 'height':h}
-        self.scaleX = 1
-        self.scaleY = 1
-        self.offsetX = 0
-        self.offsetY = 0
-        self.layerHeight = .05
-        self.zRetract = 5
-        self.zSpeed = 50
-        self.exposureTime = 0.5
-        self.printing = False
-        self.startingExposureTime = 0.8
-        self.startingLayers = 3
-    def setViewport(self, x, y, w, h):
-        self.viewport = {'x':x, 'y':y, 'width':w, 'height':h}
-    def setConfig(self, config):
-        self.config = config
-        
-        
-    def setController(self, conn):
-        print("setController")
-        self.conn = conn
+    def connect(self, port, baud):
+        self.conn = PrinterSerial(port, baud)
         self.conn.bind('move-complete', self._moveComplete)
     def setWindow(self, window):
         self.window = window
@@ -120,7 +109,10 @@ class PrintHandler:
             self.nextLayer()
     def _exposureWait(self):
         print("exposureTime", self.exposureTime)
-        time.sleep(self.exposureTime)
+        if self.currentLayer < self.startingLayers:
+            time.sleep(self.startingExposureTime)
+        else:
+            time.sleep(self.exposureTime)
         self.window.clear()
         if self.postPause > 0:
             self.curePause()
@@ -160,4 +152,16 @@ class PrintHandler:
         return len(self.layers)
     def getLayer(self, num):
         return self.layers[num]
-        
+    def stopPrint(self):
+        self.started = False
+    def disconnect(self):
+        if self.conn != None:
+            self.conn.stopAndClose()
+            self.conn = None        
+    def destroyWindow(self):
+        if self.window != None:
+            self.window.destroy()
+            self.window = None
+    def shutdown(self):
+        self.window.stopAndClose()
+        self.config.save()

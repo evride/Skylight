@@ -1,4 +1,3 @@
-from threading import *
 import re
 import time
 import json
@@ -8,7 +7,6 @@ class Configuration:
         self.displays = {}
         self.setDefault()
         self.read()
-        print(self.data)
     def set(self, key, value):
         self.data[key] = value
     def get(self, key):

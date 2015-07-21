@@ -23,26 +23,25 @@ from math import *
 
 from PrintWindow import *
 from PrintHandler import *
-from Configuration import *
-from PrinterSerial import *
 from MonitorConfig import *
 
 
 root = Tk()
 root.wm_title("Skylight")
 	
-config = Configuration()
-handler = PrintHandler(config)
+handler = PrintHandler()
+config = handler.config
 monitors = EnumDisplayMonitors()
 monitorList = []
 comPortNames = []
 comPorts = []
-printWindow = None
 mConfigWindow = None
-serialConn = None
 
 for i in serial.tools.list_ports.comports():
-    comPortNames.append(i[1])
+    if i[1] == 'n/a':
+        comPortNames.append(i[0])
+    else:
+        comPortNames.append(i[1])
     comPorts.append(i)
 for i in range(len(list(monitors))):
     monitorList.append("%d : (%dx%d)" % (i, monitors[i][2][2] - monitors[i][2][0], monitors[i][2][3] - monitors[i][2][1]) )
@@ -50,7 +49,6 @@ def load_file():
 
     filename = filedialog.askopenfilename(filetypes = [('Supported 3D Models', '*.stl;*.obj')])
     if filename: 
-        #root.wm_title("Slicing " + filename + "...")
         _path, _tail = os.path.split(filename)
         filenameLabel.config(text=filename)
         statusLabel.config(text="Slicing file " + _tail + "...")
@@ -67,8 +65,7 @@ def sliceComplete():
     handler.openFile('temp.svg')
     viewLayerFrame.setHandler(handler)
 def stop_print():
-    if printWindow != None:
-        printWindow.destroy()
+    handler.destroyWindow()
 def start_print():
     if monitorSelect.current() >= 0:
         '''
@@ -76,10 +73,7 @@ def start_print():
         handler.connectController(comPorts[comSelect.current()][0], 9600)
         '''
         
-        handler.setController(serialConn)
-        handler.setConfig(config)
-        handler.setWindow(printWindow)
-        handler.setViewport(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
+        handler.createWindow(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
         handler.startPrint()
     else:
         messagebox.showerror("Display error", "No display selected")
@@ -98,25 +92,20 @@ class ZMove(Frame):
         self.upFast.create_polygon(10, 13, 19, 28, 1, 28, fill="#333333", outline="#333333")
         self.upFast.create_polygon(10, 7, 19, 22, 1, 22, fill="#666666", outline="#666666")
         self.upFast.create_polygon(10, 1, 19, 16, 1, 16, fill="#999999", outline="#999999")
-        self.upFast.pack()
         
         self.upMed = Canvas(self, width=21, height=23)
         self.upMed.create_polygon(10, 7, 19, 22, 1, 22, fill="#333333", outline="#333333")
         self.upMed.create_polygon(10, 1, 19, 16, 1, 16, fill="#666666", outline="#666666")
-        self.upMed.pack()
         
         self.upSlow = Canvas(self, width=21, height=18)
         self.upSlow.create_polygon(10, 1, 19, 16, 1, 16, fill="#333333", outline="#333333")
-        self.upSlow.pack()
         
         self.downSlow = Canvas(self, width=21, height=18)
         self.downSlow.create_polygon(10, 16, 19, 1, 1, 1, fill="#333333", outline="#333333")
-        self.downSlow.pack()
         
         self.downMed = Canvas(self, width= 21, height=23)
         self.downMed.create_polygon(10, 16, 19, 1, 1, 1, fill="#333333", outline="#333333")
         self.downMed.create_polygon(10, 22, 19, 7, 1, 7, fill="#666666", outline="#666666")
-        self.downMed.pack()
         
         
         self.downFastBtn = Button(width=30, height=30)
@@ -125,7 +114,6 @@ class ZMove(Frame):
         self.downFast.create_polygon(10, 16, 19, 1, 1, 1, fill="#333333", outline="#333333")
         self.downFast.create_polygon(10, 22, 19, 7, 1, 7, fill="#666666", outline="#666666")
         self.downFast.create_polygon(10, 28, 19, 13, 1, 13, fill="#999999", outline="#999999")
-        self.downFast.pack()
         
         self.downFast.bind('<Button-1>', self.buttonPressed)
         self.downMed.bind('<Button-1>', self.buttonPressed)
@@ -140,6 +128,22 @@ class ZMove(Frame):
         self.upFast.bind('<ButtonRelease-1>', self.buttonReleased)
         self.upMed.bind('<ButtonRelease-1>', self.buttonReleased)
         self.upSlow.bind('<ButtonRelease-1>', self.buttonReleased)
+    def showButtons(self):
+        
+        self.upFast.pack()
+        self.upMed.pack()
+        self.upSlow.pack()
+        self.downSlow.pack()
+        self.downMed.pack()
+        self.downFast.pack()
+    def hideButtons(self):
+        
+        self.upFast.pack_forget()
+        self.upMed.pack_forget()
+        self.upSlow.pack_forget()
+        self.downSlow.pack_forget()
+        self.downMed.pack_forget()
+        self.downFast.pack_forget()
     def setConnection(self, conn):
         self.conn = conn
         self.conn.bind('move-complete', self.update)
@@ -197,6 +201,9 @@ class LayerPreview(Frame):
         self.canvas.config(insertwidth=0)
         self.canvas.config(selectborderwidth=0)
         self.canvas.config(highlightthickness=0)
+        
+        self.canvas.create_text(150, 150, text="No file selected", fill="#0099FF")
+        
         self.selectedLayer = StringVar()
         self.selectedLayer.set(0)
         self.selectedLayer.trace('w', self.layerChanged)
@@ -235,7 +242,6 @@ class LayerPreview(Frame):
 def openMonitorConfig():
     if monitorSelect.current() == -1:
         return
-    global printWindow
     global mConfigWindow
     
     resW = monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0]
@@ -246,9 +252,7 @@ def openMonitorConfig():
     dY = resY
     dW = resW
     dH = resH
-    print(printWindow)
-    if printWindow == None:
-        printWindow = PrintWindow(resX, resY, resW, resH )
+    handler.showWindow(resX, resY, resW, resH )
     if mConfigWindow == None:
         mConfigWindow = MonitorConfig(monitors[monitorSelect.current()][0], resW, resH, printWindow, config)
     mConfigWindow.wm_title("Configure Monitor [" + str(monitorSelect.current()) + "]")
@@ -258,26 +262,31 @@ def serialError(evt):
     print("error", evt)
 def serialConnected(evt):
     print(evt)
-    zMoveFrame.setConnection(serialConn)
+    zMoveFrame.setConnection(handler.conn)
+    zMoveFrame.showButtons()
+    connectButton.configure(text="Disconnect", state="normal")
 def connectSerial():
-    global serialConn
-    if comSelect.current() >= 0:
-        print(comPorts[comSelect.current()][0], int(vBaudRate.get()))
-        serialConn = PrinterSerial(comPorts[comSelect.current()][0], int(vBaudRate.get()))
-        serialConn.bind('connected', serialConnected)
-        serialConn.bind('connection-error', serialError)
-        if serialConn.connectionError != False:
+    if handler.conn != None:
+        handler.disconnect()
+        connectButton.configure(text="Connect", state="normal")
+        zMoveFrame.hideButtons()
+        
+    elif comSelect.current() >= 0:
+        connectButton.configure(text="Connecting...", state="disabled")
+        handler.connect(comPorts[comSelect.current()][0], int(vBaudRate.get()))
+        handler.conn.bind('connected', serialConnected)
+        handler.conn.bind('connection-error', serialError)
+        if handler.conn.connectionError != False:
             serialError(None)
     
 def monitorChanged(*args):
-    print(monitors[monitorSelect.current()])
     confMonitor.configure(state="normal")
-    if printWindow != None:
+    if handler.window != None:
         resW = monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0]
         resH = monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1]
         resX = monitors[monitorSelect.current()][2][0]
         resY = monitors[monitorSelect.current()][2][1]
-        printWindow.updateDimensions(resX, resY, resW, resH)
+        handler.window.updateDimensions(resX, resY, resW, resH)
 def comPortChanged(*args):
     if comSelect.current() >= 0:
         config.set('comPort', comPorts[comSelect.current()][0])
@@ -366,7 +375,10 @@ setupFrame = Frame()
 setupFrame.pack(padx=10, pady=10)
 
 printerFrame = Frame(setupFrame)
-printerFrame.pack(side=LEFT)
+printerFrame.pack(side=TOP)
+
+zMoveFrame = ZMove(printerFrame)
+zMoveFrame.pack(side=RIGHT, anchor=E, padx=(50, 0))
 
 sliceFrame = Frame()
 sliceFrame.pack(padx=10, pady=10)
@@ -395,8 +407,6 @@ baudSelect.pack()
 connectButton = Button(printerFrame, text="Connect", state="disabled", command = connectSerial)
 connectButton.pack(pady=5, anchor=W, fill=X)
 
-zMoveFrame = ZMove(printerFrame)
-zMoveFrame.pack(side=RIGHT, anchor=E)
 
 
 Label(sliceFrame, text="Layer Height (mm)").pack(anchor=W)

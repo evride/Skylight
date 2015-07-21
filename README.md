@@ -17,5 +17,17 @@ Python 3.x
 - pyserial
 - pyopengl (near-future)
 
+###
+
+Download the installer for Python. It will be the default download option  Python-3.4.3.msi
+Install for all users
+When you reach the customize installation window with a tree menu, click "Add python.exe to path" to enable it
+Restart the computer
+Press <Start>+R, type in cmd and click run.
+type in "pip install pyserial"
+Download and install the [pywin32 library](http://sourceforge.net/projects/pywin32/files/pywin32/Build%20219/pywin32-219.win32-py3.4.exe/download)
+
+
+
 ##License
 GPLv3

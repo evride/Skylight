@@ -22,6 +22,7 @@ class PrinterSerial(Serial):
         self.lastSpeed = 1000
         self.statusRequest = False
         self.busy = False
+        self._stopping = False
         try:
             self.open()
         except SerialException as se:
@@ -41,7 +42,6 @@ class PrinterSerial(Serial):
         currBytes = self.read(self.inWaiting())
         newlineRegex = re.compile(b"(\r\n|\n)")
         
-        print(currBytes, re.search(b'grbl(?i)', currBytes))
         if re.search(b'grbl(?i)', currBytes) is not None:
             print("matched grbl")
             self.detected = True
@@ -82,48 +82,12 @@ class PrinterSerial(Serial):
                 
             
         self.dispatch('connected')
-        '''
-        checkCount = 0
-        noDataCount = 0
-        found = None
-        while checkCount <= 3:
-            checkCount+=1
-            if self.inWaiting() >= 1:
-                currBytes += self.read(self.inWaiting())
-            else:
-                noDataCount+=1
-            if self.messageEnd == b"":
-                found = re.search(newlineRegex, currBytes)
-                if found is not None:
-                    self.messageEnd = found.group(0)
-                    checkCount = 0                
-            time.sleep(.3)
-        if self.messageEnd is not b"":
-            lineSplit = re.split(newlineRegex, currBytes)
-            repeatCount = 0
-            for i in range(len(lineSplit)-1, 1, -1):
-                if lineSplit[i] == lineSplit[i-1]: 
-                    repeatCount+=1
-                    self.readyMsg = lineSplit[i]
-                else:
-                    break
-        elif self.messageEnd == b"":
-            self.baudError = True
-            self.dispatch("connection-error")
-            return
-        '''
-    def waitForMessage(self, lookingFor, wait=0.1):
-        lastBytes = 0
-        waitingForData = True
-        while self.isOpen() and waitingForData:
-            time.sleep(wait)
-            if lastBytes == self.inWaiting() and self.inWaiting() != 0:
-                waitingForOK = False
-    def waitForData(self):
-        currBytes = b""
     def write(self, command):
         super(PrinterSerial, self).write(str(command + "\n").encode("ASCII"))# + self.messageEnd)
     def moveZ(self, distance, speed=1500):
+        if self._stopping == True and self.busy == False:
+            return
+            
         distance = float(distance)
         speed = float(speed)
         self.busy = True
@@ -155,9 +119,28 @@ class PrinterSerial(Serial):
                     moveCompleted = True
         self.busy = False
         self.dispatch("move-complete")
+    def stopAndClose(self):
+        self._stopping = True
+        self.unbind('move-complete')
+        self.unbind('move-start')
+        if self.busy == True:
+            self.bind('move-complete', self.close)
+        elif self.busy == False:
+            self.close()
+    def close(self):
+        super(PrinterSerial, self).close()
+        self.dispatch('connection-close')
     def clearBuffer(self):
         if self.inWaiting() >= 1:
             self.read(self.inWaiting())
+    def unbind(self, event, func = "all"):
+        if event in self.listeners:
+            if func == "all":
+                self.listeners[event] = []
+            elif func in self.listeners[event]:
+                self.listeners[event].pop(self.listeners[event].index(func))
+    def unbindAll(self):
+        self.listeners = {}        
     def bind(self, event, func):
         if event not in self.listeners:
             self.listeners[event] = []

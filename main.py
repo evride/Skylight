@@ -228,36 +228,39 @@ class LayerPreview(Frame):
         for shape in layer:
             self.canvas.create_polygon(*shape['points'], fill=shape['color'], outline=shape['color'])
     def layerChanged(self, *args):
-        self.validateDim(self.selectedLayer, self.layerSelector)
+        validateDim(self.selectedLayer, self.layerSelector)
         self.drawLayer(int(self.selectedLayer.get()))
-    def validateDim(self, var, field):
-        temp = var.get()
-        if str(temp).isdigit() == False:
-            var.set(int(field['from']))
-        elif int(temp) < field['from']:
-            var.set(int(field['from']))
-        elif int(temp) > field['to']:
-            var.set(int(field['to']))
+        
+def validateDim(self, var, field):
+    temp = var.get()
+    if str(temp).isdigit() == False:
+        var.set(int(field['from']))
+    elif int(temp) < field['from']:
+        var.set(int(field['from']))
+    elif int(temp) > field['to']:
+        var.set(int(field['to']))
     
 def openMonitorConfig():
     if monitorSelect.current() == -1:
         return
     global mConfigWindow
     
-    resW = monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0]
-    resH = monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1]
-    resX = monitors[monitorSelect.current()][2][0]
-    resY = monitors[monitorSelect.current()][2][1]
-    dX = resX
-    dY = resY
-    dW = resW
-    dH = resH
-    handler.showWindow(resX, resY, resW, resH )
+    rW = monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0]
+    rH = monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1]
+    rX = monitors[monitorSelect.current()][2][0]
+    rY = monitors[monitorSelect.current()][2][1]
+    handler.showWindow(rX, rY, rW, rH )
+    mHash = handler.config.monitorHash(monitorSelect.current(), rX, rY, rW, rH)
+    handler.config.set('selectedMonitor', mHash)
     if mConfigWindow == None:
-        mConfigWindow = MonitorConfig(monitors[monitorSelect.current()][0], resW, resH, printWindow, config)
+        mConfigWindow = MonitorConfig(handler)
+        mConfigWindow.protocol("WM_DELETE_WINDOW", monitorSettingsClosing)
+    else:
+        mConfigWindow.reloadDisplay()
     mConfigWindow.wm_title("Configure Monitor [" + str(monitorSelect.current()) + "]")
-    mConfigWindow.printArea(dX, dY, dW, dH)
-
+def monitorSettingsClosing():
+    print("asdf")
+    mConfigWindow = None
 def serialError(evt):
     print("error", evt)
 def serialConnected(evt):

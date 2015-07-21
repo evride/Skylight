@@ -20,6 +20,11 @@ class Configuration:
         f.close()
     def saveDisplay(self, id, settings):
         self.displays[id] = settings
+    def getDisplay(self, id):
+        if id in self.displays:
+            return self.displays[id]
+        else:
+            return {}
     def setDefault(self):
         self.data['layerHeight'] = 0.1
         self.data['exposureTime'] = 500
@@ -36,7 +41,12 @@ class Configuration:
             f.close()
         except:
             print("can't open file")
-        
+    def monitorInfo(self, hash):
+        id = hash[0:hash.find(':')]
+        dim = re.split(',', hash[hash.find(':')+1:])
+        return {'id': id, 'x':dim[0], 'y':dim[1], 'width':dim[2], 'height':dim[3]}
+    def monitorHash(self, id, x, y, w, h):
+        return str(id) + ':' + str(x) + ',' + str(y) + ',' + str(w) + ',' + str(h)
 
 if __name__ == "__main__":
     c = Configuration()

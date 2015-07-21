@@ -26,7 +26,7 @@ class PrintWindow(Tk):
     def drawShape(self, points, color):
         self.canvas.create_polygon(*points, fill=color, outline=color)
     def updateDimensions(self, x, y, w, h):
-        self.dimensions = [x, y, w, h]
+        self.dimensions = {'x':x, 'y':y, 'width':w, 'height':h}
         self.clear()
         self.geometry("%dx%d+%d+%d" % (w, h, x, y) )
         self.update()

@@ -100,6 +100,9 @@ class ZMove(Frame):
         self.upSlow = Canvas(self, width=21, height=18)
         self.upSlow.create_polygon(10, 1, 19, 16, 1, 16, fill="#333333", outline="#333333")
         
+        self.motorState = Button(self, text="Motor: ON")
+        self.motorState.pack()
+        
         self.downSlow = Canvas(self, width=21, height=18)
         self.downSlow.create_polygon(10, 16, 19, 1, 1, 1, fill="#333333", outline="#333333")
         
@@ -254,12 +257,13 @@ def openMonitorConfig():
     handler.config.set('selectedMonitor', mHash)
     if mConfigWindow == None:
         mConfigWindow = MonitorConfig(handler)
-        mConfigWindow.protocol("WM_DELETE_WINDOW", monitorSettingsClosing)
+        mConfigWindow.bind('<Destroy>', monitorSettingsClosed)
     else:
         mConfigWindow.reloadDisplay()
     mConfigWindow.wm_title("Configure Monitor [" + str(monitorSelect.current()) + "]")
-def monitorSettingsClosing():
+def monitorSettingsClosed():
     print("asdf")
+    global mConfigWindow
     mConfigWindow = None
 def serialError(evt):
     print("error", evt)
@@ -308,6 +312,7 @@ def settingChanged(*args):
     config.set('postPause', int(vPostPause.get()))
     config.set('retractDistance', float(vRetractDistance.get()))
     config.set('retractSpeed', int(vRetractSpeed.get()))
+    config.set
 vMonitor = StringVar()
 vMonitor.trace('w', monitorChanged)
 

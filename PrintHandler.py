@@ -2,16 +2,32 @@ from threading import *
 import xml.etree.ElementTree as ET
 import re
 import time
+from tkinter import messagebox
 from PrintWindow import *
 from Configuration import *
 from PrinterSerial import *
-class PrintHandler:
+from utils import *
+from copy import deepcopy
+
+class PrintStatus:
+    PRINTING = "running"
+    PAUSED = "paused"
+    SETUP = "setup"
+    CONNECTING = "connecting"
+    PREPARING = "preparing"
+
+class PrintHandler(EventDispatcher):
     def __init__(self):
+        EventDispatcher.__init__(self)
         self.layers = []
         self.conn = None
         self.window = None
+        self.svg = None
         self.config = Configuration()
-        self.started = False
+        self.state = PrintStatus.SETUP
+        self.ignoreLayerHeight = False
+        self.slicedLayerHeight = -1
+        self.slicedFile = None
     def showWindow(self, x, y, w, h):
         if self.window == None:
             self.window = PrintWindow(x,y,w,h)
@@ -21,9 +37,9 @@ class PrintHandler:
         self.viewport = {'x':x, 'y':y, 'width':w, 'height':h}
     def connect(self, port, baud):
         self.conn = PrinterSerial(port, baud)
+        self.conn.bind('connected', self._comConnected)
+        self.conn.bind('connection-error', self._comError)
         self.conn.bind('move-complete', self._moveComplete)
-    def setWindow(self, window):
-        self.window = window
     def startPrint(self, autoScaleCenter = False):
         if autoScaleCenter:
             self.setAutoScaleCenter()
@@ -35,14 +51,19 @@ class PrintHandler:
         self.zRetract = self.config.get('retractDistance') / 100
         self.zRetractSpeed = self.config.get('retractSpeed')
         self.postPause = self.config.get('postPause') / 1000
+        self.zReturnSpeed = self.config.get('returnSpeed')
         
-        sxy = float(self.config.get('pixelsPerMM')) / 10
+        
+        monConfig = self.config.getDisplay(self.config.get('selectedDisplay'))
+        
+            
+        sxy = float(monConfig['pixelsPerMM']) / 10
         self.setScale(sxy, sxy)
         
         dim = self.getPrintDimensions()
-        self.offsetX = (self.viewport['width'] - (self.scaleX * dim['width'])) / 2
-        self.offsetY = (self.viewport['height'] - (self.scaleY * dim['height'])) / 2
-        self.started = True
+        self.offsetX = (monConfig['printArea']['width'] - (self.scaleX * dim['width'])) / 2 + monConfig['printArea']['x']
+        self.offsetY = (monConfig['printArea']['height'] - (self.scaleY * dim['height'])) / 2 + monConfig['printArea']['y']
+        self.state = PrintStatus.PRINTING
         
         self.currentLayer = -1
         self.nextLayer()
@@ -83,8 +104,8 @@ class PrintHandler:
                 polygons.append({'points':points, 'color':color.strip()})
             self.layers.append(polygons)
     def nextLayer(self):
-        self.currentLayer+=1
         self.window.clear()
+        self.currentLayer+=1
         self.window.lift()
         if self.currentLayer == len(self.svg):
             return
@@ -98,17 +119,16 @@ class PrintHandler:
             self.window.drawShape(shape['points'], shape['color'])
         self.window.update()
         Thread(target=self._exposureWait).start()
+        self.dispatch('next-layer')
     def _moveComplete(self, evt):
-        print("move Complete", self.started, self.retracted)
-        if self.started is not True:
+        if self.state is not PrintStatus.PRINTING:
             return
         if self.retracted == True:
             self.retracted = False
-            self.conn.moveZ(-self.zRetract + self.layerHeight, self.zRetractSpeed)
+            self.conn.moveZ(-self.zRetract + self.layerHeight, self.zReturnSpeed)
         elif self.retracted == False:
             self.nextLayer()
     def _exposureWait(self):
-        print("exposureTime", self.exposureTime)
         if self.currentLayer < self.startingLayers:
             time.sleep(self.startingExposureTime)
         else:
@@ -118,15 +138,24 @@ class PrintHandler:
             self.curePause()
         elif self.postPause == 0:
             self.retractMove()
+    def _comConnected(self, evt):
+        if self.state == PrintStatus.PREPARING:
+            if self.ready():
+                self.startPrint()
+    def _comError(self, evt):
+        if self.state == PrintStatus.PREPARING:
+            self.setState(PrintStatus.SETUP)
+        messagebox.showwarning("Connection Error", "Skylight could not detect your control board. Make sure the COM port and baud rate is correct.")
+    def setState(self, s):
+        self.state = s
+        self.dispatch('state-change')
     def curePause(self):
         self.window.clear()
         self.window.update()
-        print("postPause", self.postPause)
         time.sleep(self.postPause)
         self.retractMove()
     def retractMove(self):
         self.retracted = True
-        print("retractMove", self.zRetract, self.zRetractSpeed)
         self.conn.moveZ(self.zRetract, self.zRetractSpeed)
         
     def getPrintDimensions(self):
@@ -151,9 +180,10 @@ class PrintHandler:
     def numLayers(self):
         return len(self.layers)
     def getLayer(self, num):
-        return self.layers[num]
+        #always clone layer data so changes won't effect the original data
+        return deepcopy(self.layers[num])
     def stopPrint(self):
-        self.started = False
+        self.state = PrintStatus.PAUSED
     def disconnect(self):
         if self.conn != None:
             self.conn.stopAndClose()
@@ -164,4 +194,61 @@ class PrintHandler:
             self.window = None
     def shutdown(self):
         self.window.stopAndClose()
-        self.config.save()
+        self.config.save()  
+    def recheckReady(*args):
+        self.ready()
+    def ready(self):
+        serialConnected = False
+        layerHeightValid = False
+        displayReady = False
+        fileSelected = False
+        
+        self.setState(PrintStatus.PREPARING)
+        if type(self.conn) == PrinterSerial:
+            if self.conn.detected == True:
+                serialConnected = True
+            elif self.conn.connecting:
+                return False
+            else:
+                messagebox.showwarning("Connection Error", "Skylight could not detect your control board. Make sure the COM port and baud rate is correct.")
+        else:
+            if self.config.get('comPort') != None and self.config.get('baudRate'):
+                self.connect(self.config.get('comPort'), self.config.get('baudRate'))
+            else:
+                messagebox.showwarning("Controller Not Selected", "Select the controller's COM port and baud rate.")
+        
+        if self.slicedFile != None:
+            if self.svg != None:
+                fileSelected = True
+            else:
+                messagebox.showinfo("File Slicing", "The selected model is still in the process of being sliced.")
+                self.setState(PrintStatus.SETUP)
+        else:
+            messagebox.showwarning("Select File", "You have not selected a file to be sliced and printed.")
+            self.setState(PrintStatus.SETUP)
+            
+        if serialConnected == False:
+            self.setState(PrintStatus.SETUP)
+            return False
+            
+        if self.slicedLayerHeight != -1:
+            if self.config.get('layerHeight') == self.slicedLayerHeight:
+                layerHeightValid = True
+            else:
+                if messagebox.askquestion('Reslice File', "The layer height has been changed since the file was last sliced. Would you like to reslice the model?"):
+                    self.dispatch('reslice')
+            
+        
+        #Display
+        if self.config.get('selectedDisplay') != None:
+            monConfig = self.config.getDisplay(self.config.get('selectedDisplay'))
+            
+            if 'printArea' in monConfig and 'pixelsPerMM' in monConfig:
+                displayReady = True
+            else:
+                messagebox.showinfo("Configure Display", "The selected display needs to be configured before printing.")
+        else:
+            messagebox.showinfo("Select A Display", "Select and configure a display to print with.")
+            
+        return displayReady and layerHeightValid and serialConnected and fileSelected
+        

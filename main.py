@@ -20,7 +20,7 @@ from threading import *
 import time
 from math import *
 
-
+from utils import *
 from PrintWindow import *
 from PrintHandler import *
 from MonitorConfig import *
@@ -37,14 +37,43 @@ comPortNames = []
 comPorts = []
 mConfigWindow = None
 
+selectedComPort = handler.config.get('comPort')
+selectedComPortIndex = -1
 for i in serial.tools.list_ports.comports():
+        
     if i[1] == 'n/a':
         comPortNames.append(i[0])
     else:
-        comPortNames.append(i[1])
+        comPortNames.append('[' + i[0] + '] - ' + i[1])
     comPorts.append(i)
-for i in range(len(list(monitors))):
-    monitorList.append("%d : (%dx%d)" % (i, monitors[i][2][2] - monitors[i][2][0], monitors[i][2][3] - monitors[i][2][1]) )
+    
+    if selectedComPort == i[0]:
+        selectedComPortIndex = len(comPorts) - 1
+
+selectedMonIndex = -1
+def handlerReslice(evt):
+    print("asdf")
+def handlerStateChanged(evt):
+    print("asdf2")
+handler.bind('reslice', handlerReslice)
+handler.bind('state-change', handlerStateChanged)
+    
+def setupMonitors():
+    global selectedMonIndex
+    selectedMonInfo = None
+    selectedDisplay = handler.config.get('selectedDisplay')
+    if selectedDisplay != None:
+        selectedMonInfo = handler.config.monitorInfo(selectedDisplay)
+    for i in range(len(list(monitors))):
+        mX = monitors[i][2][0]
+        mY = monitors[i][2][1]
+        mW = monitors[i][2][2] - monitors[i][2][0]
+        mH = monitors[i][2][3] - monitors[i][2][1]
+        if selectedMonInfo != None:
+            if int(selectedMonInfo['id']) == int(i) and int(selectedMonInfo['x']) == int(mX) and int(selectedMonInfo['y']) == int(mY) and int(selectedMonInfo['width']) == int(mW) and int(selectedMonInfo['height']) == int(mH):
+                selectedMonIndex = i
+        monitorList.append("%d : (%dx%d)" % (i, mW, mH) )
+setupMonitors()
 def load_file():
 
     filename = filedialog.askopenfilename(filetypes = [('Supported 3D Models', '*.stl;*.obj')])
@@ -53,31 +82,31 @@ def load_file():
         filenameLabel.config(text=filename)
         statusLabel.config(text="Slicing file " + _tail + "...")
         root.update()
-        t1 = Thread(target=sliceFile, args=[filename, vLayerHeight.get()])
+        handler.slicedLayerHeight = handler.config.get('layerHeight')
+        t1 = Thread(target=sliceFile, args=[filename, handler.slicedLayerHeight])
         t1.start()
 
 def sliceFile(filename, layerHeight):
-    directory = os.path.dirname(os.path.abspath(__file__))
-    subprocess.call("{0}/slic3r/slic3r.exe {1} --layer-height={2} --export-svg --output={0}/temp.svg".format(directory, filename, layerHeight))
+    handler.slicedLayerHeight = layerHeight
+    handler.slicedFile = filename
+    subprocess.call("{0}/slic3r/slic3r.exe {1} --layer-height={2} --export-svg --output={3}temp.svg".format(currentDir(), filename, layerHeight, appdataDir()))
     sliceComplete()
     statusLabel.config(text="Done")
 def sliceComplete():
-    handler.openFile('temp.svg')
+    handler.openFile(appdataDir() + 'temp.svg')
     viewLayerFrame.setHandler(handler)
+    viewLayerFrame.updatePrint()
 def stop_print():
     handler.destroyWindow()
 def start_print():
-    if monitorSelect.current() >= 0:
-        '''
-        handler.createWindow(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
-        handler.connectController(comPorts[comSelect.current()][0], 9600)
-        '''
-        
-        handler.createWindow(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
+    if handler.ready():
+        handler.showWindow(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
         handler.startPrint()
-    else:
-        messagebox.showerror("Display error", "No display selected")
         return
+def printNextLayer(evt):
+    statusLabel.config(text="Printing layer " + str(handler.currentLayer) + " of " + str(handler.numLayers()))
+def printStarted(evt):
+    statusLabel.config(text="Print started")
 class ZMove(Frame):
     def __init__(self, master, **kwargs):
         Frame.__init__(self, master, **kwargs)
@@ -86,6 +115,7 @@ class ZMove(Frame):
         self.zSpeed = 0
         self.maxZSpeed = 10
         self.moveMultiplier = 1
+        self.motorOn = True
         self.conn = None
         
         self.upFast = Canvas(self, width= 21, height=29)
@@ -100,8 +130,7 @@ class ZMove(Frame):
         self.upSlow = Canvas(self, width=21, height=18)
         self.upSlow.create_polygon(10, 1, 19, 16, 1, 16, fill="#333333", outline="#333333")
         
-        self.motorState = Button(self, text="Motor: ON")
-        self.motorState.pack()
+        self.motorState = Button(self, text="Motor: ON", command=self.motorStateChanged)
         
         self.downSlow = Canvas(self, width=21, height=18)
         self.downSlow.create_polygon(10, 16, 19, 1, 1, 1, fill="#333333", outline="#333333")
@@ -136,6 +165,7 @@ class ZMove(Frame):
         self.upFast.pack()
         self.upMed.pack()
         self.upSlow.pack()
+        self.motorState.pack()
         self.downSlow.pack()
         self.downMed.pack()
         self.downFast.pack()
@@ -144,6 +174,7 @@ class ZMove(Frame):
         self.upFast.pack_forget()
         self.upMed.pack_forget()
         self.upSlow.pack_forget()
+        self.motorState.pack_forget()
         self.downSlow.pack_forget()
         self.downMed.pack_forget()
         self.downFast.pack_forget()
@@ -151,9 +182,12 @@ class ZMove(Frame):
         self.conn = conn
         self.conn.bind('move-complete', self.update)
     def buttonPressed(self, evt):
+        self.motorOn = True
+        self.motorState['text'] = "Motor: ON"
         self.moveZ = 0
         self.moveMultiplier = 1
         self.maxZSpeed = 5000
+        
         if evt.widget == self.downFast:
             self.moveZ = -10
             self.zSpeed = 300
@@ -185,6 +219,15 @@ class ZMove(Frame):
             self.maxZSpeed = 10
             self.moveMultiplier = 1
         self.update()
+    def motorStateChanged(self, mState = None):
+        if self.motorOn:
+            self.conn.write("M18")
+            self.motorState['text'] = "Motor: OFF"
+        else:
+            self.conn.write("M17")
+            self.motorState['text'] = "Motor: ON"
+        self.motorOn = self.motorOn == False
+        
     def update(self, *args):
         if self.conn is not None:
             if self.conn.busy == False:
@@ -219,29 +262,49 @@ class LayerPreview(Frame):
         self.layerSelector.pack(side=RIGHT)
     def setHandler(self, handler):
         self.handler = handler
+        
+        
+    def updatePrint(self):
+        self.printDim = self.handler.getPrintDimensions()
         self.layerSelector['to'] = self.handler.numLayers()
         self.layerSelector['from'] = 1
         self.numLayersLabel['text'] = "of " + str(self.handler.numLayers())
+        
         self.selectedLayer.set(1)
-        self.drawLayer(1)
+        
     def drawLayer(self, num):
         self.canvas.delete('all')
         self.canvas.create_rectangle(0,0, 300, 300, fill="#000000")
+        offsetX = (300 - (self.printDim['width'] + self.printDim['x'] * 2)) / 2
+        offsetY = (300 - (self.printDim['height'] + self.printDim['y'] * 2)) / 2
+        
+        scale = 1
+        
+        if self.handler.config.get('selectedDisplay') is not None:
+            monConfig = self.handler.config.getDisplay(self.handler.config.get('selectedDisplay'))
+            if 'printArea' in monConfig and 'pixelsPerMM' in monConfig:
+                sX = 300 / monConfig['printArea']['width']
+                sY = 300 / monConfig['printArea']['height']
+                if sX < sY:
+                    scale = sX
+                elif sY < sX:
+                    scale = sY
+                scale = scale * (float(monConfig['pixelsPerMM']) / 10)
+                
+                
+                
         layer = self.handler.getLayer(int(num)-1)
         for shape in layer:
+            for i in range(0, len(shape['points'])):
+                if i % 2 == 0:
+                    shape['points'][int(i)] = shape['points'][int(i)] * scale + offsetX
+                elif i % 2 == 1:
+                    shape['points'][int(i)] = shape['points'][int(i)] * scale + offsetY
             self.canvas.create_polygon(*shape['points'], fill=shape['color'], outline=shape['color'])
     def layerChanged(self, *args):
         validateDim(self.selectedLayer, self.layerSelector)
         self.drawLayer(int(self.selectedLayer.get()))
-        
-def validateDim(self, var, field):
-    temp = var.get()
-    if str(temp).isdigit() == False:
-        var.set(int(field['from']))
-    elif int(temp) < field['from']:
-        var.set(int(field['from']))
-    elif int(temp) > field['to']:
-        var.set(int(field['to']))
+
     
 def openMonitorConfig():
     if monitorSelect.current() == -1:
@@ -254,19 +317,20 @@ def openMonitorConfig():
     rY = monitors[monitorSelect.current()][2][1]
     handler.showWindow(rX, rY, rW, rH )
     mHash = handler.config.monitorHash(monitorSelect.current(), rX, rY, rW, rH)
-    handler.config.set('selectedMonitor', mHash)
+    handler.config.set('selectedDisplay', mHash)
     if mConfigWindow == None:
         mConfigWindow = MonitorConfig(handler)
         mConfigWindow.bind('<Destroy>', monitorSettingsClosed)
     else:
         mConfigWindow.reloadDisplay()
     mConfigWindow.wm_title("Configure Monitor [" + str(monitorSelect.current()) + "]")
-def monitorSettingsClosed():
-    print("asdf")
+def monitorSettingsClosed(evt):
     global mConfigWindow
     mConfigWindow = None
+    handler.window.clear()
 def serialError(evt):
-    print("error", evt)
+    messagebox.showerror("Connection Error", "There was an error connecting to the COM port. Make sure the selected COM port and baud rate is correct.")
+    connectButton.configure(text="Connect", state="normal")
 def serialConnected(evt):
     print(evt)
     zMoveFrame.setConnection(handler.conn)
@@ -299,58 +363,100 @@ def comPortChanged(*args):
         config.set('comPort', comPorts[comSelect.current()][0])
     if str(vBaudRate.get()).isdigit():
         config.set('baudRate', vBaudRate.get())
-        
+    checkCOMConnectable()  
+def checkCOMConnectable():
     if comSelect.current() >= 0 and str(vBaudRate.get()).isdigit() and int(vBaudRate.get()) >= 300:
         connectButton.configure(state="normal")
     else:
         connectButton.configure(state="disabled")
-def settingChanged(*args):
-    config.set('layerHeight', float(vLayerHeight.get()))
-    config.set('exposureTime', int(vExposureTime.get()))
-    config.set('startingExposureTime', int(vStartingExposureTime.get()))
-    config.set('startingLayers', int(vStartingLayers.get()))
-    config.set('postPause', int(vPostPause.get()))
-    config.set('retractDistance', float(vRetractDistance.get()))
-    config.set('retractSpeed', int(vRetractSpeed.get()))
-    config.set
-vMonitor = StringVar()
-vMonitor.trace('w', monitorChanged)
+    
 
-vComPort = StringVar()
-vComPort.trace('w', comPortChanged)
+class SettingsFrame(Frame):
+    def __init__(self, master, **kwargs):
+        Frame.__init__(self, master, **kwargs)
+        
+        self.vLayerHeight = StringVar()
+        self.vExposureTime = StringVar()
+        self.vStartingExposureTime = StringVar()
+        self.vStartingLayers = StringVar()
+        self.vPostPause = StringVar()
+        self.vRetractDistance = StringVar()
+        self.vRetractSpeed = StringVar()
+        self.vReturnSpeed = StringVar()
+        
+        Label(self, text="Layer Height (mm)").pack(anchor=W)
+        self.layerHeightInput = Spinbox(self, from_=0.001, to=1, increment=0.01, format="%.3f" , textvariable=self.vLayerHeight)
+        self.layerHeightInput.pack(anchor=W)
 
-vBaudRate = StringVar()
-vBaudRate.set(config.get('baudRate'))
-vBaudRate.trace('w', comPortChanged)
+        Label(self, text="Exposure Time (ms)").pack(anchor=W)
+        self.exposureTimeInput = Spinbox(self, from_=1, to=10000, increment=100 , textvariable=self.vExposureTime)
+        self.exposureTimeInput.pack(anchor=W)
+        Label(self, text="Starting Exposure Time (ms)").pack(anchor=W)
+        self.startExposureInput = Spinbox(self, from_=1, to=10000, increment=100 , textvariable=self.vStartingExposureTime)
+        self.startExposureInput.pack(anchor=W)
+        Label(self, text="Starting Layers").pack(anchor=W)
+        self.startingLayersInput = Spinbox(self, from_=0, to=100, increment=1 , textvariable=self.vStartingLayers)
+        self.startingLayersInput.pack(anchor=W)
+        Label(self, text="Post-Exposure Pause (ms)").pack(anchor=W)
+        self.postPauseInput = Spinbox(self, from_=0, to=5000, increment=50 , textvariable=self.vPostPause)
+        self.postPauseInput.pack(anchor=W)
+        Label(self, text="Z-Retract Distance (mm)").pack(anchor=W)
+        self.zRetractInput = Spinbox(self, from_=0, to=5000, increment=50 , textvariable=self.vRetractDistance)
+        self.zRetractInput.pack(anchor=W)
+        Label(self, text="Z-Retract Speed (mm/min)").pack(anchor=W)
+        self.retractSpeedInput = Spinbox(self, from_=1, to=500, increment=50 , textvariable=self.vRetractSpeed)
+        self.retractSpeedInput.pack(anchor=W)
+        Label(self, text="Z-Return Speed (mm/min)").pack(anchor=W)
+        self.returnSpeedInput = Spinbox(self, from_=1, to=500, increment=50 , textvariable=self.vReturnSpeed)
+        self.returnSpeedInput.pack(anchor=W)
+        
+        
+        
+        self.vLayerHeight.set(handler.config.get('layerHeight'))
+        self.vExposureTime.set(handler.config.get('exposureTime'))
+        self.vStartingExposureTime.set(handler.config.get('startingExposureTime'))
+        self.vStartingLayers.set(handler.config.get('startingLayers'))
+        self.vPostPause.set(handler.config.get('postPause'))
+        self.vRetractDistance.set(handler.config.get('retractDistance'))
+        self.vRetractSpeed.set(handler.config.get('retractSpeed'))
+        self.vReturnSpeed.set(handler.config.get('returnSpeed'))
+        
+        
+        self.vLayerHeight.trace('w', self.layerHeightChanged) 
+        self.vExposureTime.trace('w', self.settingChanged) 
+        self.vStartingExposureTime.trace('w', self.settingChanged) 
+        self.vStartingLayers.trace('w', self.settingChanged) 
+        self.vPostPause.trace('w', self.settingChanged) 
+        self.vRetractDistance.trace('w', self.settingChanged) 
+        self.vRetractSpeed.trace('w', self.settingChanged) 
+        self.vReturnSpeed.trace('w', self.settingChanged) 
+        
+    def layerHeightChanged(self, *args):
+        validateDim(self.vLayerHeight, self.layerHeightInput)
+        config.set('layerHeight', float(self.vLayerHeight.get()))
+        if handler.slicedLayerHeight != -1:
+            '''if messagebox.askquestion('Reslice File', "The layer height has been changed since the file was last sliced. Would you like to reslice the model?"):
+                print("reslice")
+            '''
+    def settingChanged(self, *args):
+        validateDim(self.vExposureTime, self.exposureTimeInput)
+        validateDim(self.vStartingExposureTime, self.startExposureInput)
+        validateDim(self.vStartingLayers, self.startingLayersInput)
+        validateDim(self.vPostPause, self.postPauseInput)
+        validateDim(self.vRetractDistance, self.zRetractInput)
+        validateDim(self.vRetractSpeed, self.retractSpeedInput)
+        validateDim(self.vReturnSpeed, self.returnSpeedInput)
+        
+        config.set('exposureTime', int(self.vExposureTime.get()))
+        config.set('startingExposureTime', int(self.vStartingExposureTime.get()))
+        config.set('startingLayers', int(self.vStartingLayers.get()))
+        config.set('postPause', int(self.vPostPause.get()))
+        config.set('retractDistance', float(self.vRetractDistance.get()))
+        config.set('retractSpeed', int(self.vRetractSpeed.get()))
+        config.set('returnSpeed', int(self.vReturnSpeed.get()))
 
-vLayerHeight = StringVar()
-vLayerHeight.set(config.get('layerHeight'))
-vLayerHeight.trace('w', settingChanged)
-
-vExposureTime = StringVar()
-vExposureTime.set(config.get('exposureTime'))
-vExposureTime.trace('w', settingChanged)
-
-vStartingExposureTime = StringVar()
-vStartingExposureTime.set(config.get('startingExposureTime'))
-vStartingExposureTime.trace('w', settingChanged)
-
-vStartingLayers = StringVar()
-vStartingLayers.set(config.get('startingLayers'))
-vStartingLayers.trace('w', settingChanged)
-
-vPostPause = StringVar()
-vPostPause.set(config.get('postPause'))
-vPostPause.trace('w', settingChanged)
-
-vRetractDistance = StringVar()
-vRetractDistance.set(config.get('retractDistance'))
-vRetractDistance.trace('w', settingChanged)
-
-vRetractSpeed = StringVar()
-vRetractSpeed.set(config.get('retractSpeed'))
-vRetractSpeed.trace('w', settingChanged)
-
+handler.bind('next-layer', printNextLayer)
+handler.bind('start', printStarted)
 
 
 
@@ -388,7 +494,7 @@ printerFrame.pack(side=TOP)
 zMoveFrame = ZMove(printerFrame)
 zMoveFrame.pack(side=RIGHT, anchor=E, padx=(50, 0))
 
-sliceFrame = Frame()
+sliceFrame = SettingsFrame(settingsFrame)
 sliceFrame.pack(padx=10, pady=10)
 
 settingsFrame.add(setupFrame, text="Connection")
@@ -396,18 +502,38 @@ settingsFrame.add(sliceFrame, text="Slice Settings")
 printerFrame.configure(padx=10, pady = 10)
 sliceFrame.configure(padx=10, pady = 10)
 
+vMonitor = StringVar()
+vComPort = StringVar()
+vBaudRate = StringVar()
+
+
 
 Label(printerFrame, text="Monitor").pack(anchor=W)
 monitorSelect = Combobox(printerFrame, values = monitorList, state="readonly", textvariable=vMonitor)
 monitorSelect.pack()
+    
+
 confMonitor = Button(printerFrame, text="Configure Monitor", state="disabled", command = openMonitorConfig)
 confMonitor.pack(pady=5, anchor=W, fill=X)
+
 
 Label(printerFrame, text="COM Port").pack(anchor=W)
 comSelect = Combobox(printerFrame, values = comPortNames, state="readonly", textvariable=vComPort)
 comSelect.pack()
 
+if selectedMonIndex != -1:
+    monitorSelect.current(int(selectedMonIndex))
+    confMonitor.configure(state="normal")
 
+if selectedComPortIndex != -1:
+    print(selectedComPortIndex)
+    vComPort.set(comPortNames[int(selectedComPortIndex)])
+
+vBaudRate.set(config.get('baudRate'))
+
+vMonitor.trace('w', monitorChanged)
+vComPort.trace('w', comPortChanged)
+vBaudRate.trace('w', comPortChanged) 
 
 Label(printerFrame, text="Baud Rate").pack(anchor=W)
 baudSelect = Combobox(printerFrame, values = [300, 1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 250000, 2500000], textvariable=vBaudRate)
@@ -415,30 +541,10 @@ baudSelect.pack()
 connectButton = Button(printerFrame, text="Connect", state="disabled", command = connectSerial)
 connectButton.pack(pady=5, anchor=W, fill=X)
 
+checkCOMConnectable()
 
 
-Label(sliceFrame, text="Layer Height (mm)").pack(anchor=W)
-layerHeightSelect = Spinbox(sliceFrame, from_=0.001, to=1, increment=0.01, format="%.3f" , textvariable=vLayerHeight)
-layerHeightSelect.pack()
 
-Label(sliceFrame, text="Exposure Time (ms)").pack(anchor=W)
-exposureTimeInput = Spinbox(sliceFrame, from_=1, to=5000, increment=50 , textvariable=vExposureTime)
-exposureTimeInput.pack()
-Label(sliceFrame, text="Starting Exposure Time (ms)").pack(anchor=W)
-startExposureInput = Spinbox(sliceFrame, from_=1, to=5000, increment=50 , textvariable=vStartingExposureTime)
-startExposureInput.pack()
-Label(sliceFrame, text="Starting Layers").pack(anchor=W)
-exposureTimeInput = Spinbox(sliceFrame, from_=0, to=100, increment=1 , textvariable=vStartingLayers)
-exposureTimeInput.pack()
-Label(sliceFrame, text="Post-Exposure Pause (ms)").pack(anchor=W)
-postPauseInput = Spinbox(sliceFrame, from_=0, to=5000, increment=50 , textvariable=vPostPause)
-postPauseInput.pack()
-Label(sliceFrame, text="Z-Retract Distance (mm)").pack(anchor=W)
-zRetractInput = Spinbox(sliceFrame, from_=0, to=5000, increment=10 , textvariable=vRetractDistance)
-zRetractInput.pack()
-Label(sliceFrame, text="Z-Retract Speed (mm/min)").pack(anchor=W)
-retractSpeedInput = Spinbox(sliceFrame, from_=1, to=500, increment=500 , textvariable=vRetractSpeed)
-retractSpeedInput.pack()
 
 statusFrame = LabelFrame(root)
 statusFrame.pack(expand=True, fill=X, side=BOTTOM, padx = 10, pady = 10, ipadx=10, ipady=10)
@@ -455,8 +561,7 @@ stateButton.pack(side=RIGHT, padx = 10)
 #root.overrideredirect(True)
 #root.wm_geometry("1024x768")
 #root.iconbitmap("favicon.ico")
-
-root.iconphoto(True, PhotoImage(file=os.path.join(os.path.dirname(os.path.abspath(__file__)), "favicon.png")))
+root.iconphoto(True, PhotoImage(file=os.path.join(currentDir(), "favicon.png")))
 def on_closing():
     if messagebox.askokcancel("Quit", "Are you sure you want to quit?"):
         config.save()

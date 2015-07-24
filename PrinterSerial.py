@@ -4,12 +4,14 @@ from threading import *
 import time
 import re
 import os
+from utils import *
 
-class PrinterSerial(Serial):
+class PrinterSerial(Serial, EventDispatcher):
     def __init__(self, port, baud):
         Serial.__init__(self)
+        EventDispatcher.__init__(self)
         self.port = port
-        self.baud = baud
+        self.baudrate = baud
         self.listeners = {}
         self.waiting = True
         self.detected = False
@@ -23,6 +25,7 @@ class PrinterSerial(Serial):
         self.statusRequest = False
         self.busy = False
         self._stopping = False
+        self.connecting = True
         try:
             self.open()
         except SerialException as se:
@@ -41,7 +44,6 @@ class PrinterSerial(Serial):
         time.sleep(2)        
         currBytes = self.read(self.inWaiting())
         newlineRegex = re.compile(b"(\r\n|\n)")
-        
         if re.search(b'grbl(?i)', currBytes) is not None:
             print("matched grbl")
             self.detected = True
@@ -62,25 +64,26 @@ class PrinterSerial(Serial):
         self.write("G91")
         time.sleep(.05)
         self.accepted = False
-        while self.inWaiting() >=1:
-            if self.accepted == False:
-                self.accepted = self.readline()
-            else:
-                self.readline() #clears buffer
-        time.sleep(2)
+        if self.inWaiting() >=1:
+            self.accepted = self.readline()
+        self.clearBuffer()
+        time.sleep(3)
         if self.inWaiting() >= 1:
             repeatCount = 0
             self.waitingMessage = self.readline()
             while self.inWaiting() >= 1:
-                if self.waitingMessage != self.readline():
-                    self.waitingMessage = ""
-                    self.repeatsWaiting = False
+                tempWaitMsg = self.readline()
+                if self.waitingMessage != tempWaitMsg:
+                    self.waitingMessage = tempWaitMsg
+                    repeatCount = 0
                 repeatCount+=1
-            if repeatCount >= 1:
+            if repeatCount >= 2:
                 self.repeatsWaiting = True
-                print("repeating", self.waitingMessage)
-                
-            
+                self.readyRegex = re.compile(self.waitingMessage)
+                print("repeating", repeatCount, self.waitingMessage)
+        
+        self.detected = True
+        self.connecting = False
         self.dispatch('connected')
     def write(self, command):
         super(PrinterSerial, self).write(str(command + "\n").encode("ASCII"))# + self.messageEnd)
@@ -103,20 +106,27 @@ class PrinterSerial(Serial):
         self.dispatch("move-start")
         self.write("G1 Z" + str(distance) + " F" + str(speed))
         timeToMove = abs(distance) / ((speed + self.lastSpeed) / 2) * 60
-        if self.repeatsWaiting == False:
+        if self.repeatsWaiting or self.statusRequest:
             Thread(target=self._sleepWait, args=[timeToMove]).start()
         self.lastSpeed = speed
     def _sleepWait(self, t):
+        print("_sleepWait")
         time.sleep(abs(t))
         moveCompleted = False
-        if self.statusRequest != False:
-            self.clearBuffer()
-            while moveCompleted == False:
-                self.write(self.statusRequest)
+        self.clearBuffer()
+        if self.statusRequest == False and self.repeatsWaiting == False:
+            moveCompleted = True
+        elif self.statusRequest != False:
+            self.write(self.statusRequest)
+        while moveCompleted == False:
+            bytesReceived = 0
+            while bytesReceived == 0:
+                bytesReceived = self.inWaiting()
                 time.sleep(.01)
-                status = self.readline()
-                if re.search(self.readyRegex, status) is not None:
-                    moveCompleted = True
+            status = self.readline()
+            print(status)
+            if re.search(self.readyRegex, status) is not None:
+                moveCompleted = True
         self.busy = False
         self.dispatch("move-complete")
     def stopAndClose(self):
@@ -133,23 +143,6 @@ class PrinterSerial(Serial):
     def clearBuffer(self):
         if self.inWaiting() >= 1:
             self.read(self.inWaiting())
-    def unbind(self, event, func = "all"):
-        if event in self.listeners:
-            if func == "all":
-                self.listeners[event] = []
-            elif func in self.listeners[event]:
-                self.listeners[event].pop(self.listeners[event].index(func))
-    def unbindAll(self):
-        self.listeners = {}        
-    def bind(self, event, func):
-        if event not in self.listeners:
-            self.listeners[event] = []
-        self.listeners[event].append(func)
-    def dispatch(self, event):
-        evt = {'event':event, 'target':self}
-        if event in self.listeners:
-            for i in range(0, len(self.listeners[event])):
-                self.listeners[event][i](evt)
                  
 
 if __name__ == "__main__":

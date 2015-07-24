@@ -1,6 +1,7 @@
 from tkinter import *
 from tkinter.ttk import Separator
 from math import *
+from utils import *
 
 class MonitorConfig(Tk):
     def __init__(self, handler):
@@ -81,7 +82,7 @@ class MonitorConfig(Tk):
         self.mW = self.handler.window.dimensions['width']
         self.mH = self.handler.window.dimensions['height']
         
-        monConfig = self.handler.config.getDisplay(self.handler.config.get('selectedMonitor'))
+        monConfig = self.handler.config.getDisplay(self.handler.config.get('selectedDisplay'))
         
         self.widthText['to'] = self.mW
         self.heightText['to'] = self.mH
@@ -103,25 +104,22 @@ class MonitorConfig(Tk):
             self.pxMM.set(monConfig['pixelsPerMM'])
         else:
             self.pxMM.set(50)
-        print(self.mW, self.mH)
         self.posXText['to'] = self.mW - int(self.pW.get())
         self.posYText['to'] = self.mH - int(self.pH.get())
     def ratioChanged(self, *args):
-        dState = self.drawState.set('grid')
-        self.validateDim(self.pxMM, self.pxPerMM)
+        validateDim(self.pxMM, self.pxPerMM)
         
-        self.redraw()
+        self.drawState.set("grid")
     def areaChanged(self, *args):
-        dState = self.drawState.set('area')
-        self.validateDim(self.pW, self.widthText)
-        self.validateDim(self.pH, self.heightText)
+        validateDim(self.pW, self.widthText)
+        validateDim(self.pH, self.heightText)
         self.posXText['to'] = int(self.widthText['to']) - int(self.pW.get())
         self.posYText['to'] = int(self.heightText['to']) - int(self.pH.get())
-        self.validateDim(self.pX, self.posXText)
-        self.validateDim(self.pY, self.posYText)
+        validateDim(self.pX, self.posXText)
+        validateDim(self.pY, self.posYText)
         
         
-        self.redraw()
+        self.drawState.set("area")
     def redraw(self, *args):
         dState = self.drawState.get()
         if dState == "area":
@@ -182,35 +180,22 @@ class MonitorConfig(Tk):
             drawH = 300
         bX = round((300 - drawW)/2)
         bY = round((300 - drawH)/2)
-        self.areaCanvas.create_rectangle(bX, bY, drawW + bX, drawH + bY, fill="#000000")
         
-        aX = round(scale * int(self.pX.get())) + bX
-        aY = round(scale * int(self.pY.get())) + bY
-        aW = round(scale * int(self.pW.get())) + aX
-        aH = round(scale * int(self.pH.get())) + aY
+        _pX = self.pX.get()
+        _pY = self.pY.get()
+        _pW = self.pW.get()
+        _pH = self.pH.get()
+        
+        self.areaCanvas.create_rectangle(bX, bY, drawW + bX, drawH + bY, fill="#000000")
+        aX = round(scale * float(_pX)) + bX
+        aY = round(scale * float(_pY)) + bY
+        aW = round(scale * float(_pW)) + aX
+        aH = round(scale * float(_pH)) + aY
         self.areaCanvas.create_rectangle(aX, aY, aW, aH, fill = "#FF0000", outline="#FF0000")
         
-        self.handler.window.canvas.create_rectangle(int(self.pX.get()), int(self.pY.get()), int(self.pW.get()) + int(self.pX.get()), int(self.pH.get()) +int(self.pY.get()), fill="#FF0000", outline="#FF0000")
-    def validateDim(self, var, field):
-        temp = var.get()
-        if str(temp).isdigit() == False:
-            var.set(int(field['from']))
-        elif int(temp) < field['from']:
-            var.set(int(field['from']))
-        elif int(temp) > field['to']:
-            var.set(int(field['to']))
+        self.handler.window.canvas.create_rectangle(float(_pX), float(_pY), float(_pW) + float(_pX), float(_pH) + float(_pY), fill="#FF0000", outline="#FF0000")
     def saveSettings(self):
-        self.handler.config.saveDisplay(self.handler.config.get('selectedMonitor'), {'printArea':{'x':int(self.pX.get()), 'y':int(self.pY.get()), 'width':int(self.pW.get()), 'height':int(self.pH.get())}, 'pixelsPerMM':self.pxMM.get()})
-        self.dispatch('close')
-    def cancel(self):
-        self.dispatch('close')
+        self.handler.config.saveDisplay(self.handler.config.get('selectedDisplay'), {'printArea':{'x':int(self.pX.get()), 'y':int(self.pY.get()), 'width':int(self.pW.get()), 'height':int(self.pH.get())}, 'pixelsPerMM':self.pxMM.get()})
         self.destroy()
-    def bind(self, event, func):
-        if event not in self.listeners:
-            self.listeners[event] = []
-        self.listeners[event].append(func)
-    def dispatch(self, event):
-        evt = {'event':event, 'target':self}
-        if event in self.listeners:
-            for i in range(0, len(self.listeners[event])):
-                self.listeners[event][i](evt)
+    def cancel(self):
+        self.destroy()

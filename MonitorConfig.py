@@ -29,7 +29,7 @@ class MonitorConfig(Tk):
         settingsFrame = Frame(container)
         
         Label(settingsFrame, text="Print Area Width").pack(anchor=W)
-        self.widthText = Spinbox(settingsFrame, from_=1, to=2, textvariable=self.pW)
+        self.widthText = Spinbox(settingsFrame, from_=1, to=2, textvariable=self.pW, format="%5f")
         self.widthText.pack()
         #widthText.bind('<KeyRelease>', self.valueChanged)
         Label(settingsFrame, text="Print Area Height").pack(anchor=W)
@@ -113,8 +113,8 @@ class MonitorConfig(Tk):
     def areaChanged(self, *args):
         validateDim(self.pW, self.widthText)
         validateDim(self.pH, self.heightText)
-        self.posXText['to'] = int(self.widthText['to']) - int(self.pW.get())
-        self.posYText['to'] = int(self.heightText['to']) - int(self.pH.get())
+        self.posXText['to'] = round(float(self.widthText['to'])) - round(float(self.pW.get()))
+        self.posYText['to'] = round(float(self.heightText['to'])) - round(float(self.pH.get()))
         validateDim(self.pX, self.posXText)
         validateDim(self.pY, self.posYText)
         

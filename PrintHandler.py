@@ -36,6 +36,9 @@ class PrintHandler(EventDispatcher):
         self.window.clear()
         self.viewport = {'x':x, 'y':y, 'width':w, 'height':h}
     def connect(self, port, baud):
+        if self.conn is not None:
+            if self.conn.connecting or self.detected:
+                return
         self.conn = PrinterSerial(port, baud)
         self.conn.bind('connected', self._comConnected)
         self.conn.bind('connection-error', self._comError)
@@ -193,8 +196,11 @@ class PrintHandler(EventDispatcher):
             self.window.destroy()
             self.window = None
     def shutdown(self):
-        self.window.stopAndClose()
+        if self.conn != None:
+            self.conn.stopAndClose()
         self.config.save()  
+        if self.window != None:
+            self.window.destroy()
     def recheckReady(*args):
         self.ready()
     def ready(self):

@@ -51,12 +51,6 @@ for i in serial.tools.list_ports.comports():
         selectedComPortIndex = len(comPorts) - 1
 
 selectedMonIndex = -1
-def handlerReslice(evt):
-    print("asdf")
-def handlerStateChanged(evt):
-    print("asdf2")
-handler.bind('reslice', handlerReslice)
-handler.bind('state-change', handlerStateChanged)
     
 def setupMonitors():
     global selectedMonIndex
@@ -78,17 +72,19 @@ def load_file():
 
     filename = filedialog.askopenfilename(filetypes = [('Supported 3D Models', '*.stl;*.obj')])
     if filename: 
-        _path, _tail = os.path.split(filename)
-        filenameLabel.config(text=filename)
-        statusLabel.config(text="Slicing file " + _tail + "...")
-        root.update()
-        handler.slicedLayerHeight = handler.config.get('layerHeight')
-        t1 = Thread(target=sliceFile, args=[filename, handler.slicedLayerHeight])
-        t1.start()
-
-def sliceFile(filename, layerHeight):
-    handler.slicedLayerHeight = layerHeight
+        startSlicing(filename)
+def startSlicing(filename):
+    _path, _tail = os.path.split(filename)
+    filenameLabel.config(text=filename)
+    statusLabel.config(text="Slicing file " + _tail + "...")
+    root.update()
+    handler.slicedLayerHeight = handler.config.get('layerHeight')
     handler.slicedFile = filename
+    t1 = Thread(target=sliceFile, args=[filename, handler.slicedLayerHeight])
+    t1.start()
+def sliceFile(filename, layerHeight):
+    print(filename, layerHeight)
+    print("{0}/slic3r/slic3r.exe {1} --layer-height={2} --export-svg --output={3}temp.svg".format(currentDir(), filename, layerHeight, appdataDir()))
     subprocess.call("{0}/slic3r/slic3r.exe {1} --layer-height={2} --export-svg --output={3}temp.svg".format(currentDir(), filename, layerHeight, appdataDir()))
     sliceComplete()
     statusLabel.config(text="Done")
@@ -96,8 +92,6 @@ def sliceComplete():
     handler.openFile(appdataDir() + 'temp.svg')
     viewLayerFrame.setHandler(handler)
     viewLayerFrame.updatePrint()
-def stop_print():
-    handler.destroyWindow()
 def start_print():
     if handler.ready():
         handler.showWindow(monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][1], monitors[monitorSelect.current()][2][2] - monitors[monitorSelect.current()][2][0], monitors[monitorSelect.current()][2][3] - monitors[monitorSelect.current()][2][1] )
@@ -265,12 +259,17 @@ class LayerPreview(Frame):
         
         
     def updatePrint(self):
+        self.canvas.delete('all')
         self.printDim = self.handler.getPrintDimensions()
-        self.layerSelector['to'] = self.handler.numLayers()
-        self.layerSelector['from'] = 1
-        self.numLayersLabel['text'] = "of " + str(self.handler.numLayers())
-        
-        self.selectedLayer.set(1)
+        nLayers = self.handler.numLayers()
+        if nLayers >= 1:
+            self.layerSelector['to'] = self.handler.numLayers()
+            self.layerSelector['from'] = 1
+            self.numLayersLabel['text'] = "of " + str(self.handler.numLayers())
+            self.selectedLayer.set(1)
+        else:
+            self.layerSelector['to'] = 0
+            self.layerSelector['from'] = 0
         
     def drawLayer(self, num):
         self.canvas.delete('all')
@@ -447,13 +446,13 @@ class SettingsFrame(Frame):
         validateDim(self.vRetractSpeed, self.retractSpeedInput)
         validateDim(self.vReturnSpeed, self.returnSpeedInput)
         
-        config.set('exposureTime', int(self.vExposureTime.get()))
-        config.set('startingExposureTime', int(self.vStartingExposureTime.get()))
-        config.set('startingLayers', int(self.vStartingLayers.get()))
-        config.set('postPause', int(self.vPostPause.get()))
+        config.set('exposureTime', round(float(self.vExposureTime.get())))
+        config.set('startingExposureTime', round(float(self.vStartingExposureTime.get())))
+        config.set('startingLayers', round(float(self.vStartingLayers.get())))
+        config.set('postPause', round(float(self.vPostPause.get())))
         config.set('retractDistance', float(self.vRetractDistance.get()))
-        config.set('retractSpeed', int(self.vRetractSpeed.get()))
-        config.set('returnSpeed', int(self.vReturnSpeed.get()))
+        config.set('retractSpeed', round(float(self.vRetractSpeed.get())))
+        config.set('returnSpeed', round(float(self.vReturnSpeed.get())))
 
 handler.bind('next-layer', printNextLayer)
 handler.bind('start', printStarted)
@@ -557,6 +556,16 @@ stateButton = Button(statusFrame, text = 'Start Print', command = start_print)
 stateButton.pack(side=RIGHT, padx = 10)
 
 
+
+def handlerReslice(evt):
+    startSlicing(handler.slicedFile)
+def handlerStateChanged(evt):
+    print(handler.state)
+handler.bind('reslice', handlerReslice)
+handler.bind('state-change', handlerStateChanged)
+
+
+
 	
 #root.overrideredirect(True)
 #root.wm_geometry("1024x768")
@@ -564,8 +573,7 @@ stateButton.pack(side=RIGHT, padx = 10)
 root.iconphoto(True, PhotoImage(file=os.path.join(currentDir(), "favicon.png")))
 def on_closing():
     if messagebox.askokcancel("Quit", "Are you sure you want to quit?"):
-        config.save()
-        stop_print()
+        handler.shutdown()
         root.destroy()
 
 root.protocol("WM_DELETE_WINDOW", on_closing)

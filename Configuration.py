@@ -1,10 +1,12 @@
 import re
 import time
 import json
+from utils import *
 class Configuration:
     def __init__(self):
         self.data = {}
         self.displays = {}
+        self.controllers = {}
         self.setDefault()
         self.read()
     def set(self, key, value):
@@ -14,8 +16,11 @@ class Configuration:
         if key in self.data:
             val = self.data[key]
         return val
+    def unset(self, key):
+        if key in self.data:
+            del self.data[key]
     def save(self):
-        f = open('settings.ini', 'w')
+        f = open(appdataDir() + 'settings.ini', 'w')
         json.dump({'settings':self.data, 'displays':self.displays}, f)
         f.close()
     def saveDisplay(self, id, settings):
@@ -32,21 +37,34 @@ class Configuration:
         self.data['startingLayers'] = 3
         self.data['postPause'] = 0
         self.data['retractDistance'] = 500
-        self.data['retractSpeed'] = 500
+        self.data['retractSpeed'] = 200
+        self.data['returnSpeed'] = 500
     def read(self):
         try:
-            f = open('settings.ini', 'r')
+            f = open(appdataDir() + 'settings.ini', 'r')
             jsonData = json.load(f)
-            
-            f.close()
+            print(jsonData['settings'])
+            self.data = jsonData['settings']
+            self.displays = jsonData['displays']
+            self.controllers = jsonData['controllers']
+            print("derpz")
         except:
             print("can't open file")
     def monitorInfo(self, hash):
         id = hash[0:hash.find(':')]
         dim = re.split(',', hash[hash.find(':')+1:])
-        return {'id': id, 'x':dim[0], 'y':dim[1], 'width':dim[2], 'height':dim[3]}
+        if len(dim) == 4:
+            return {'id': id, 'x':dim[0], 'y':dim[1], 'width':dim[2], 'height':dim[3]}
+        else:
+            return None
     def monitorHash(self, id, x, y, w, h):
         return str(id) + ':' + str(x) + ',' + str(y) + ',' + str(w) + ',' + str(h)
+    def reset(self):
+        self.data = {}
+        self.displays = {}
+        self.controllers = {}
+        self.save()
+        self.setDefault()
 
 if __name__ == "__main__":
     c = Configuration()

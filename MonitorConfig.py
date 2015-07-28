@@ -16,12 +16,13 @@ class MonitorConfig(Tk):
         self.pW = StringVar(self)
         self.pH = StringVar(self)
         self.pxMM = StringVar(self)
-        self.drawState = StringVar(self)
+        self.dState = StringVar(self)
+        self.drawState = "area"
         
         container = Frame(self)
         container.pack(side=TOP)
         
-        self.drawState.set("area")
+        self.dState.set("area")
         
         self.areaCanvas = Canvas(container, width=300, height=300)
         self.areaCanvas.pack(side=LEFT)
@@ -29,7 +30,7 @@ class MonitorConfig(Tk):
         settingsFrame = Frame(container)
         
         Label(settingsFrame, text="Print Area Width").pack(anchor=W)
-        self.widthText = Spinbox(settingsFrame, from_=1, to=2, textvariable=self.pW, format="%5f")
+        self.widthText = Spinbox(settingsFrame, from_=1, to=2, textvariable=self.pW)
         self.widthText.pack()
         #widthText.bind('<KeyRelease>', self.valueChanged)
         Label(settingsFrame, text="Print Area Height").pack(anchor=W)
@@ -52,9 +53,9 @@ class MonitorConfig(Tk):
         Separator(settingsFrame, orient=HORIZONTAL).pack(expand=True, fill=X, pady=10)
         Label(settingsFrame, text="Show").pack(anchor=W)
         
-        showAreaBtn = Radiobutton(settingsFrame, text="Print Area", value="area", variable=self.drawState)
+        showAreaBtn = Radiobutton(settingsFrame, text="Print Area", value="area", variable=self.dState)
         showAreaBtn.pack(side=RIGHT, anchor=W)
-        showGridBtn = Radiobutton(settingsFrame, text="Grid", value="grid", variable=self.drawState)
+        showGridBtn = Radiobutton(settingsFrame, text="Grid", value="grid", variable=self.dState)
         showGridBtn.pack(side=LEFT, anchor=W)
         
         
@@ -73,7 +74,7 @@ class MonitorConfig(Tk):
         self.pW.trace("w", self.areaChanged)
         self.pH.trace("w", self.areaChanged)
         self.pxMM.trace("w", self.ratioChanged)
-        self.drawState.trace("w", self.redraw)
+        self.dState.trace("w", self.drawChange)
         
         self.reloadDisplay()
         
@@ -107,24 +108,29 @@ class MonitorConfig(Tk):
         self.posXText['to'] = self.mW - int(self.pW.get())
         self.posYText['to'] = self.mH - int(self.pH.get())
     def ratioChanged(self, *args):
-        validateDim(self.pxMM, self.pxPerMM)
+        validateInt(self.pxMM, self.pxPerMM)
         
-        self.drawState.set("grid")
+        self.drawState = "grid"
+        self.redraw()
     def areaChanged(self, *args):
-        validateDim(self.pW, self.widthText)
-        validateDim(self.pH, self.heightText)
-        self.posXText['to'] = round(float(self.widthText['to'])) - round(float(self.pW.get()))
-        self.posYText['to'] = round(float(self.heightText['to'])) - round(float(self.pH.get()))
-        validateDim(self.pX, self.posXText)
-        validateDim(self.pY, self.posYText)
+        validateInt(self.pW, self.widthText)
+        validateInt(self.pH, self.heightText)
+        self.posXText['to'] = float(self.widthText['to']) - float(self.pW.get())
+        self.posYText['to'] = float(self.heightText['to']) - float(self.pH.get())
+        validateInt(self.pX, self.posXText)
+        validateInt(self.pY, self.posYText)
         
         
-        self.drawState.set("area")
-    def redraw(self, *args):
-        dState = self.drawState.get()
-        if dState == "area":
+        self.drawState = "area"
+        self.redraw()
+        
+    def drawChange(self, *args):
+        self.drawState = self.dState.get()
+        self.redraw()
+    def redraw(self):
+        if self.drawState == "area":
             self.redrawArea()
-        elif dState == "grid":
+        elif self.drawState == "grid":
             self.redrawGrid()
     def redrawGrid(self):
         self.areaCanvas.delete('all')
@@ -141,7 +147,7 @@ class MonitorConfig(Tk):
         self.areaCanvas.create_rectangle(bX, bY, drawW + bX, drawH + bY, fill="#000000")
         
         
-        tempPxMM = int(self.pxMM.get())
+        tempPxMM = float(self.pxMM.get())
         linesX = floor(self.mW / tempPxMM)
         if linesX % 2 == 1:
             linesX -=1
@@ -195,7 +201,7 @@ class MonitorConfig(Tk):
         
         self.handler.window.canvas.create_rectangle(float(_pX), float(_pY), float(_pW) + float(_pX), float(_pH) + float(_pY), fill="#FF0000", outline="#FF0000")
     def saveSettings(self):
-        self.handler.config.saveDisplay(self.handler.config.get('selectedDisplay'), {'printArea':{'x':int(self.pX.get()), 'y':int(self.pY.get()), 'width':int(self.pW.get()), 'height':int(self.pH.get())}, 'pixelsPerMM':self.pxMM.get()})
+        self.handler.config.saveDisplay(self.handler.config.get('selectedDisplay'), {'printArea':{'x':self.pX.get(), 'y':self.pY.get(), 'width':self.pW.get(), 'height':self.pH.get()}, 'pixelsPerMM':self.pxMM.get()})
         self.destroy()
     def cancel(self):
         self.destroy()

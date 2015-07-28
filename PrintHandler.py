@@ -47,14 +47,15 @@ class PrintHandler(EventDispatcher):
         if autoScaleCenter:
             self.setAutoScaleCenter()
 		
-        self.layerHeight = self.config.get('layerHeight')
-        self.exposureTime = self.config.get('exposureTime') / 1000
-        self.startingExposureTime = self.config.get('startingExposureTime') / 1000
-        self.startingLayers = self.config.get('startingLayers')
-        self.zRetract = self.config.get('retractDistance') / 100
-        self.zRetractSpeed = self.config.get('retractSpeed')
-        self.postPause = self.config.get('postPause') / 1000
-        self.zReturnSpeed = self.config.get('returnSpeed')
+        self.layerHeight = float(self.config.get('layerHeight'))
+        self.exposureTime = float(self.config.get('exposureTime')) / 1000
+        self.startingExposureTime = float(self.config.get('startingExposureTime')) / 1000
+        self.startingLayers = float(self.config.get('startingLayers'))
+        self.zRetract = float(self.config.get('retractDistance')) / 100
+        self.zRetractSpeed = float(self.config.get('retractSpeed'))
+        self.postPause = float(self.config.get('postPause')) / 1000
+        self.zReturnSpeed = float(self.config.get('returnSpeed'))
+        self.prePause = float(self.config.get('prePause')) / 1000
         
         
         monConfig = self.config.getDisplay(self.config.get('selectedDisplay'))
@@ -64,8 +65,8 @@ class PrintHandler(EventDispatcher):
         self.setScale(sxy, sxy)
         
         dim = self.getPrintDimensions()
-        self.offsetX = (monConfig['printArea']['width'] - (self.scaleX * dim['width'])) / 2 + monConfig['printArea']['x']
-        self.offsetY = (monConfig['printArea']['height'] - (self.scaleY * dim['height'])) / 2 + monConfig['printArea']['y']
+        self.offsetX = (int(monConfig['printArea']['width']) - (self.scaleX * dim['width'])) / 2 + int(monConfig['printArea']['x'])
+        self.offsetY = (int(monConfig['printArea']['height']) - (self.scaleY * dim['height'])) / 2 + int(monConfig['printArea']['y'])
         self.state = PrintStatus.PRINTING
         
         self.currentLayer = -1
@@ -111,6 +112,8 @@ class PrintHandler(EventDispatcher):
         self.currentLayer+=1
         self.window.lift()
         if self.currentLayer == len(self.svg):
+            self.conn.write("M84")
+            self.conn.write("M2")
             return
         layerData = self.getLayer(self.currentLayer)
         for shape in layerData:
@@ -130,6 +133,8 @@ class PrintHandler(EventDispatcher):
             self.retracted = False
             self.conn.moveZ(-self.zRetract + self.layerHeight, self.zReturnSpeed)
         elif self.retracted == False:
+            if self.prePause > 0:
+                time.sleep(self.prePause)
             self.nextLayer()
     def _exposureWait(self):
         if self.currentLayer < self.startingLayers:
@@ -160,7 +165,6 @@ class PrintHandler(EventDispatcher):
     def retractMove(self):
         self.retracted = True
         self.conn.moveZ(self.zRetract, self.zRetractSpeed)
-        
     def getPrintDimensions(self):
         dim = {'x':False, 'y':False, 'width':False, 'height':False}
         for layer in self.layers:
@@ -189,6 +193,8 @@ class PrintHandler(EventDispatcher):
         self.state = PrintStatus.PAUSED
     def disconnect(self):
         if self.conn != None:
+            self.conn.write("M84")
+            self.conn.write("M2")
             self.conn.stopAndClose()
             self.conn = None        
     def destroyWindow(self):

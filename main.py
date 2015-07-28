@@ -282,8 +282,8 @@ class LayerPreview(Frame):
         if self.handler.config.get('selectedDisplay') is not None:
             monConfig = self.handler.config.getDisplay(self.handler.config.get('selectedDisplay'))
             if 'printArea' in monConfig and 'pixelsPerMM' in monConfig:
-                sX = 300 / monConfig['printArea']['width']
-                sY = 300 / monConfig['printArea']['height']
+                sX = 300 / int(monConfig['printArea']['width'])
+                sY = 300 / int(monConfig['printArea']['height'])
                 if sX < sY:
                     scale = sX
                 elif sY < sX:
@@ -301,7 +301,7 @@ class LayerPreview(Frame):
                     shape['points'][int(i)] = shape['points'][int(i)] * scale + offsetY
             self.canvas.create_polygon(*shape['points'], fill=shape['color'], outline=shape['color'])
     def layerChanged(self, *args):
-        validateDim(self.selectedLayer, self.layerSelector)
+        validateInt(self.selectedLayer, self.layerSelector)
         self.drawLayer(int(self.selectedLayer.get()))
 
     
@@ -382,6 +382,7 @@ class SettingsFrame(Frame):
         self.vRetractDistance = StringVar()
         self.vRetractSpeed = StringVar()
         self.vReturnSpeed = StringVar()
+        self.vPrePause = StringVar()
         
         Label(self, text="Layer Height (mm)").pack(anchor=W)
         self.layerHeightInput = Spinbox(self, from_=0.001, to=1, increment=0.01, format="%.3f" , textvariable=self.vLayerHeight)
@@ -408,6 +409,9 @@ class SettingsFrame(Frame):
         Label(self, text="Z-Return Speed (mm/min)").pack(anchor=W)
         self.returnSpeedInput = Spinbox(self, from_=1, to=500, increment=50 , textvariable=self.vReturnSpeed)
         self.returnSpeedInput.pack(anchor=W)
+        Label(self, text="Pre-Exposure Pause (ms)").pack(anchor=W)
+        self.prePauseInput = Spinbox(self, from_=0, to=5000, increment=50 , textvariable=self.vPrePause)
+        self.prePauseInput.pack(anchor=W)
         
         
         
@@ -419,6 +423,7 @@ class SettingsFrame(Frame):
         self.vRetractDistance.set(handler.config.get('retractDistance'))
         self.vRetractSpeed.set(handler.config.get('retractSpeed'))
         self.vReturnSpeed.set(handler.config.get('returnSpeed'))
+        self.vPostPause.set(handler.config.get('prePause'))
         
         
         self.vLayerHeight.trace('w', self.layerHeightChanged) 
@@ -429,30 +434,33 @@ class SettingsFrame(Frame):
         self.vRetractDistance.trace('w', self.settingChanged) 
         self.vRetractSpeed.trace('w', self.settingChanged) 
         self.vReturnSpeed.trace('w', self.settingChanged) 
+        self.vPrePause.trace('w', self.settingChanged) 
         
     def layerHeightChanged(self, *args):
-        validateDim(self.vLayerHeight, self.layerHeightInput)
-        config.set('layerHeight', float(self.vLayerHeight.get()))
+        validateFloat(self.vLayerHeight, self.layerHeightInput)
+        config.set('layerHeight', self.vLayerHeight.get())
         if handler.slicedLayerHeight != -1:
             '''if messagebox.askquestion('Reslice File', "The layer height has been changed since the file was last sliced. Would you like to reslice the model?"):
                 print("reslice")
             '''
     def settingChanged(self, *args):
-        validateDim(self.vExposureTime, self.exposureTimeInput)
-        validateDim(self.vStartingExposureTime, self.startExposureInput)
-        validateDim(self.vStartingLayers, self.startingLayersInput)
-        validateDim(self.vPostPause, self.postPauseInput)
-        validateDim(self.vRetractDistance, self.zRetractInput)
-        validateDim(self.vRetractSpeed, self.retractSpeedInput)
-        validateDim(self.vReturnSpeed, self.returnSpeedInput)
+        validateInt(self.vExposureTime, self.exposureTimeInput)
+        validateInt(self.vStartingExposureTime, self.startExposureInput)
+        validateInt(self.vStartingLayers, self.startingLayersInput)
+        validateInt(self.vPostPause, self.postPauseInput)
+        validateFloat(self.vRetractDistance, self.zRetractInput)
+        validateInt(self.vRetractSpeed, self.retractSpeedInput)
+        validateInt(self.vReturnSpeed, self.returnSpeedInput)
+        validateInt(self.vPrePause, self.prePauseInput)
         
-        config.set('exposureTime', round(float(self.vExposureTime.get())))
-        config.set('startingExposureTime', round(float(self.vStartingExposureTime.get())))
-        config.set('startingLayers', round(float(self.vStartingLayers.get())))
-        config.set('postPause', round(float(self.vPostPause.get())))
-        config.set('retractDistance', float(self.vRetractDistance.get()))
-        config.set('retractSpeed', round(float(self.vRetractSpeed.get())))
-        config.set('returnSpeed', round(float(self.vReturnSpeed.get())))
+        config.set('exposureTime', self.vExposureTime.get())
+        config.set('startingExposureTime', self.vStartingExposureTime.get())
+        config.set('startingLayers', self.vStartingLayers.get())
+        config.set('postPause', self.vPostPause.get())
+        config.set('retractDistance', self.vRetractDistance.get())
+        config.set('retractSpeed', self.vRetractSpeed.get())
+        config.set('returnSpeed', self.vReturnSpeed.get())
+        config.set('prePause', self.vPrePause.get())
 
 handler.bind('next-layer', printNextLayer)
 handler.bind('start', printStarted)

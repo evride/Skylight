@@ -39,6 +39,7 @@ class Configuration:
         self.data['retractDistance'] = 500
         self.data['retractSpeed'] = 200
         self.data['returnSpeed'] = 500
+        self.data['prePause'] = 0
     def read(self):
         try:
             f = open(appdataDir() + 'settings.ini', 'r')

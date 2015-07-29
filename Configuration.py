@@ -44,13 +44,10 @@ class Configuration:
         try:
             f = open(appdataDir() + 'settings.ini', 'r')
             jsonData = json.load(f)
-            print(jsonData['settings'])
             self.data = jsonData['settings']
             self.displays = jsonData['displays']
-            self.controllers = jsonData['controllers']
-            print("derpz")
         except:
-            print("can't open file")
+            print("can't load file")
     def monitorInfo(self, hash):
         id = hash[0:hash.find(':')]
         dim = re.split(',', hash[hash.find(':')+1:])

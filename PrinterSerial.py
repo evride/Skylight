@@ -130,6 +130,8 @@ class PrinterSerial(Serial, EventDispatcher):
         self.busy = False
         self.dispatch("move-complete")
     def stopAndClose(self):
+        self.write('M18')
+        self.write('M2')
         self._stopping = True
         self.unbind('move-complete')
         self.unbind('move-start')

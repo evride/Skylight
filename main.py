@@ -385,7 +385,7 @@ class SettingsFrame(Frame):
         self.vPrePause = StringVar()
         
         Label(self, text="Layer Height (mm)").pack(anchor=W)
-        self.layerHeightInput = Spinbox(self, from_=0.001, to=1, increment=0.01, format="%.3f" , textvariable=self.vLayerHeight)
+        self.layerHeightInput = Spinbox(self, from_=0.0, to=1, increment=0.005, format="%.3f" , textvariable=self.vLayerHeight)
         self.layerHeightInput.pack(anchor=W)
 
         Label(self, text="Exposure Time (ms)").pack(anchor=W)
@@ -423,7 +423,7 @@ class SettingsFrame(Frame):
         self.vRetractDistance.set(handler.config.get('retractDistance'))
         self.vRetractSpeed.set(handler.config.get('retractSpeed'))
         self.vReturnSpeed.set(handler.config.get('returnSpeed'))
-        self.vPostPause.set(handler.config.get('prePause'))
+        self.vPrePause.set(handler.config.get('prePause'))
         
         
         self.vLayerHeight.trace('w', self.layerHeightChanged) 

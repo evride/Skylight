@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+from math import *
 
 numFloat = re.compile('^(\d*\.?\d*|\d+)$')
 notNumFloat = re.compile('[^\d\.]+')
@@ -12,19 +13,25 @@ def validateFloat(var, field):
     changed = True
     if numFloat.match(temp) != None:
         changed = False
-    temp = dotRepeat.sub('.', temp)
-    first = temp.find('.')
-    if first != -1:
-        second = temp.find('.', first)
-        second = second if second != -1 else len(temp)
-        temp = temp[0:second]
-    temp = float(temp)
-    if temp < field['from']:
+    else:
+        temp = notNumFloat.sub('', temp)
+        temp = dotRepeat.sub('.', temp)
+        first = temp.find('.')
+        if first != -1:
+            second = temp.find('.', first+1)
+            second = second if second != -1 else len(temp)
+            temp = temp[0:second]
+       
+    if temp.find('.') == -1:
+        temp = temp + ".0"
+    num = float(temp)
+    
+    if num < field['from']:
         var.set(field['from'])
-    elif temp > field['to']:
+    elif num > field['to']:
         var.set(field['to'])
     elif changed:
-        var.set(temp)
+        var.set(num)
 def validateInt(var, field):
     temp = var.get()
     changed = True

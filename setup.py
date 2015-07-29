@@ -13,14 +13,29 @@ msi_data = {
         "DesktopFolder",
         "Skylight",
         "TARGETDIR",              # Component_
-         "[TARGETDIR]playlist.exe",# Target
+         "[TARGETDIR]skylight.exe",# Target
          None,                     # Arguments
          None,                     # Description
          None,                     # Hotkey
-         None,                     # Icon
+         'favicon.ico',                     # Icon
          None,                     # IconIndex
          None,                     # ShowCmd
          'TARGETDIR'               # WkDir
+         ),
+         ("ProgramShortcut",
+          "ProgramMenuFolder",
+          "Skylight",
+          "TARGETDIR",              # Component_
+         "[TARGETDIR]skylight.exe",# Target
+         None,                     # Arguments
+         None,                     # Description
+         None,                     # Hotkey
+         'favicon.ico',                     # Icon
+         None,                     # IconIndex
+         None,                     # ShowCmd
+         'TARGETDIR'               # WkDir
+         )
+         
         
     ]
 }

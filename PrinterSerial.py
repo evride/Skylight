@@ -48,7 +48,7 @@ class PrinterSerial(Serial, EventDispatcher):
             print("matched grbl")
             self.detected = True
             self.statusRequest = "?"
-            self.readyMsg = b"idle(?i)"
+            self.readyMsg = b"(idle|hold)(?i)"
             self.readyRegex = re.compile(self.readyMsg)
             self.dispatch('connected')
             return
@@ -136,9 +136,11 @@ class PrinterSerial(Serial, EventDispatcher):
         self.unbind('move-complete')
         self.unbind('move-start')
         if self.busy == True:
-            self.bind('move-complete', self.close)
+            self.bind('move-complete', self._moveCompleteClose)
         elif self.busy == False:
             self.close()
+    def _moveCompleteClose(self, evt):
+        self.close()
     def close(self):
         super(PrinterSerial, self).close()
         self.dispatch('connection-close')

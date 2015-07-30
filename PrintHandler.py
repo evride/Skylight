@@ -36,13 +36,15 @@ class PrintHandler(EventDispatcher):
         self.window.clear()
         self.viewport = {'x':x, 'y':y, 'width':w, 'height':h}
     def connect(self, port, baud):
+        print("connect")
         if self.conn is not None:
-            if self.conn.connecting or self.detected:
+            if self.conn.connecting or self.conn.detected:
                 return
         self.conn = PrinterSerial(port, baud)
         self.conn.bind('connected', self._comConnected)
         self.conn.bind('connection-error', self._comError)
         self.conn.bind('move-complete', self._moveComplete)
+        print("all bound")
     def startPrint(self, autoScaleCenter = False):
         if autoScaleCenter:
             self.setAutoScaleCenter()
@@ -51,7 +53,7 @@ class PrintHandler(EventDispatcher):
         self.exposureTime = float(self.config.get('exposureTime')) / 1000
         self.startingExposureTime = float(self.config.get('startingExposureTime')) / 1000
         self.startingLayers = float(self.config.get('startingLayers'))
-        self.zRetract = float(self.config.get('retractDistance')) / 100
+        self.zRetract = float(self.config.get('retractDistance')) / 10
         self.zRetractSpeed = float(self.config.get('retractSpeed'))
         self.postPause = float(self.config.get('postPause')) / 1000
         self.zReturnSpeed = float(self.config.get('returnSpeed'))
@@ -61,7 +63,7 @@ class PrintHandler(EventDispatcher):
         monConfig = self.config.getDisplay(self.config.get('selectedDisplay'))
         
             
-        sxy = float(monConfig['pixelsPerMM']) / 10
+        sxy = float(monConfig['pixelsPerCM']) / 10
         self.setScale(sxy, sxy)
         
         dim = self.getPrintDimensions()
@@ -150,10 +152,13 @@ class PrintHandler(EventDispatcher):
         if self.state == PrintStatus.PREPARING:
             if self.ready():
                 self.startPrint()
+
     def _comError(self, evt):
         if self.state == PrintStatus.PREPARING:
             self.setState(PrintStatus.SETUP)
-        messagebox.showwarning("Connection Error", "Skylight could not detect your control board. Make sure the COM port and baud rate is correct.")
+            messagebox.showwarning("Connection Error", "Skylight could not detect your control board. Make sure the COM port and baud rate is correct.")
+        self.conn.close()
+        self.conn = None
     def setState(self, s):
         self.state = s
         self.dispatch('state-change')
@@ -191,10 +196,15 @@ class PrintHandler(EventDispatcher):
         return deepcopy(self.layers[num])
     def stopPrint(self):
         self.state = PrintStatus.PAUSED
+    def continuePrint(self):
+        self.state = PrintStatus.PRINTING
+        self.nextLayer()
     def disconnect(self):
         if self.conn != None:
-            self.conn.write("M84")
-            self.conn.write("M2")
+            print("disconnect")
+            if self.conn.detected:
+                self.conn.write("M84")
+                self.conn.write("M2")
             self.conn.stopAndClose()
             self.conn = None        
     def destroyWindow(self):
@@ -255,7 +265,7 @@ class PrintHandler(EventDispatcher):
         if self.config.get('selectedDisplay') != None:
             monConfig = self.config.getDisplay(self.config.get('selectedDisplay'))
             
-            if 'printArea' in monConfig and 'pixelsPerMM' in monConfig:
+            if 'printArea' in monConfig and 'pixelsPerCM' in monConfig:
                 displayReady = True
             else:
                 messagebox.showinfo("Configure Display", "The selected display needs to be configured before printing.")

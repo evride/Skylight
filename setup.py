@@ -47,10 +47,10 @@ if sys.platform == "win32":
     base = "Win32GUI"
 
 setup(  name = "Skylight",
-        version = "0.21",
+        version = "0.24",
         description='Skylight: A Simple DLP 3D printer controller',
         author='Evan Ridenour',
         author_email='eridenour@gmail.com',
         url='https://github.com/evride/Skylight',
         options = {"build_exe": build_exe_options},
-        executables = [Executable("main.py", base=base, icon='favicon.ico', targetName="skylight.exe")])
+        executables = [Executable("main.py", base=base, icon='favicon.ico', targetName="skylight.exe", shortcutName="Skylight", shortcutDir="ProgramMenuFolder")])

@@ -53,7 +53,19 @@ def validateInt(var, field):
         var.set(field['to'])
     elif changed:
         var.set(temp)
-    
+def parseFloat(s):
+    s = notNumFloat.sub('', s)
+    s = dotRepeat.sub('.', s)
+def parseInt(s):
+    s = notNumFloat.sub('', s)
+    n = 0
+    if s.find('.') != -1:
+        s = s[0:s.find('.')]
+        if s != "":
+            n = int(s)
+    else:
+        n = int(s)
+    return n
 class EventDispatcher:
     def __init__(self):
         self.listeners = {}

@@ -20,7 +20,7 @@ class PrintWindow(Tk):
         #self.attributes("-fullscreen", True)
     def preparePrint(self):
         self.canvas.config(state=DISABLED)
-        self.canvas.config(cursor="none")        
+        self.canvas.config(cursor="none")      
     def clear(self):
         self.canvas.delete('all')
     def drawShape(self, points, color):
@@ -28,5 +28,5 @@ class PrintWindow(Tk):
     def updateDimensions(self, x, y, w, h):
         self.dimensions = {'x':x, 'y':y, 'width':w, 'height':h}
         self.clear()
-        self.geometry("%dx%d+%d+%d" % (w, h, x, y) )
+        self.geometry("%dx%d+%d+%d" % (w, h, x, y) ) 
         self.update()

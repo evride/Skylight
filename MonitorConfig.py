@@ -15,7 +15,7 @@ class MonitorConfig(Tk):
         self.pY = StringVar(self)
         self.pW = StringVar(self)
         self.pH = StringVar(self)
-        self.pxMM = StringVar(self)
+        self.pxCM = StringVar(self)
         self.dState = StringVar(self)
         self.drawState = "area"
         
@@ -47,7 +47,7 @@ class MonitorConfig(Tk):
         
         Label(settingsFrame, text="Pixels Per Centimeter").pack(anchor=W)
         
-        self.pxPerMM = Spinbox(settingsFrame, from_=1, to=100, textvariable=self.pxMM)
+        self.pxPerMM = Spinbox(settingsFrame, from_=1, to=100, textvariable=self.pxCM)
         self.pxPerMM.pack()
         
         Separator(settingsFrame, orient=HORIZONTAL).pack(expand=True, fill=X, pady=10)
@@ -73,7 +73,7 @@ class MonitorConfig(Tk):
         self.pY.trace("w", self.areaChanged)
         self.pW.trace("w", self.areaChanged)
         self.pH.trace("w", self.areaChanged)
-        self.pxMM.trace("w", self.ratioChanged)
+        self.pxCM.trace("w", self.ratioChanged)
         self.dState.trace("w", self.drawChange)
         
         self.reloadDisplay()
@@ -101,14 +101,14 @@ class MonitorConfig(Tk):
             self.pY.set(round(self.mH * .1))
             self.pW.set(round(self.mW * .80))
             self.pH.set(round(self.mH * .80))
-        if 'pixelsPerMM' in monConfig:
-            self.pxMM.set(monConfig['pixelsPerMM'])
+        if 'pixelsPerCM' in monConfig:
+            self.pxCM.set(monConfig['pixelsPerCM'])
         else:
-            self.pxMM.set(50)
+            self.pxCM.set(50)
         self.posXText['to'] = self.mW - int(self.pW.get())
         self.posYText['to'] = self.mH - int(self.pH.get())
     def ratioChanged(self, *args):
-        validateInt(self.pxMM, self.pxPerMM)
+        validateInt(self.pxCM, self.pxPerMM)
         
         self.drawState = "grid"
         self.redraw()
@@ -147,31 +147,31 @@ class MonitorConfig(Tk):
         self.areaCanvas.create_rectangle(bX, bY, drawW + bX, drawH + bY, fill="#000000")
         
         
-        tempPxMM = float(self.pxMM.get())
-        linesX = floor(self.mW / tempPxMM)
+        temppxCM = float(self.pxCM.get())
+        linesX = floor(self.mW / temppxCM)
         if linesX % 2 == 1:
             linesX -=1
         linesX /= 2
         
-        linesY = floor(self.mH / tempPxMM)
+        linesY = floor(self.mH / temppxCM)
         if linesY % 2 == 1:
             linesY -= 1
         linesY /= 2
         
-        diffX = self.mW / 2 - linesX * tempPxMM
-        diffY = self.mH / 2 - linesY * tempPxMM
+        diffX = self.mW / 2 - linesX * temppxCM
+        diffY = self.mH / 2 - linesY * temppxCM
         for i in range(0, int((linesX * 2) + 1)):
-            tempX = round( i * tempPxMM * scale) + scale * diffX
+            tempX = round( i * temppxCM * scale) + scale * diffX
             self.areaCanvas.create_line(tempX + bX, bY, tempX + bX, bY + drawH, fill="#FF0000")
         for i in range(0, int((linesY * 2) + 1)):
-            tempY = round( i * tempPxMM * scale) +  scale * diffY
+            tempY = round( i * temppxCM * scale) +  scale * diffY
             self.areaCanvas.create_line( bX, tempY + bY, bX + drawW, tempY + bY, fill="#FF0000")
             
         self.handler.window.clear()
         for i in range(0, int((linesX * 2) + 1)):
-            self.handler.window.canvas.create_line(i * tempPxMM + diffX , 0, i * tempPxMM + diffX , self.mH, fill="#FF0000")
+            self.handler.window.canvas.create_line(i * temppxCM + diffX , 0, i * temppxCM + diffX , self.mH, fill="#FF0000")
         for i in range(0, int((linesY * 2) + 1)):
-            self.handler.window.canvas.create_line(0, i * tempPxMM + diffY , self.mW, i * tempPxMM + diffY, fill="#FF0000")
+            self.handler.window.canvas.create_line(0, i * temppxCM + diffY , self.mW, i * temppxCM + diffY, fill="#FF0000")
     def redrawArea(self):
         self.areaCanvas.delete('all')
         self.handler.window.clear()
@@ -201,7 +201,7 @@ class MonitorConfig(Tk):
         
         self.handler.window.canvas.create_rectangle(float(_pX), float(_pY), float(_pW) + float(_pX), float(_pH) + float(_pY), fill="#FF0000", outline="#FF0000")
     def saveSettings(self):
-        self.handler.config.saveDisplay(self.handler.config.get('selectedDisplay'), {'printArea':{'x':self.pX.get(), 'y':self.pY.get(), 'width':self.pW.get(), 'height':self.pH.get()}, 'pixelsPerMM':self.pxMM.get()})
+        self.handler.config.saveDisplay(self.handler.config.get('selectedDisplay'), {'printArea':{'x':self.pX.get(), 'y':self.pY.get(), 'width':self.pW.get(), 'height':self.pH.get()}, 'pixelsPerCM':self.pxCM.get()})
         self.destroy()
     def cancel(self):
         self.destroy()

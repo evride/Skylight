@@ -49,15 +49,15 @@ class PrintHandler(EventDispatcher):
         if autoScaleCenter:
             self.setAutoScaleCenter()
 		
-        self.layerHeight = float(self.config.get('layerHeight'))
-        self.exposureTime = float(self.config.get('exposureTime')) / 1000
-        self.startingExposureTime = float(self.config.get('startingExposureTime')) / 1000
-        self.startingLayers = float(self.config.get('startingLayers'))
-        self.zRetract = float(self.config.get('retractDistance')) / 10
-        self.zRetractSpeed = float(self.config.get('retractSpeed'))
-        self.postPause = float(self.config.get('postPause')) / 1000
-        self.zReturnSpeed = float(self.config.get('returnSpeed'))
-        self.prePause = float(self.config.get('prePause')) / 1000
+        self.layerHeight = parseFloat(self.config.get('layerHeight'))
+        self.exposureTime = parseInt(self.config.get('exposureTime')) / 1000
+        self.startingExposureTime = parseInt(self.config.get('startingExposureTime')) / 1000
+        self.startingLayers = parseInt(self.config.get('startingLayers'))
+        self.zRetract = float(self.config.get('retractDistance'))
+        self.zRetractSpeed = parseInt(self.config.get('retractSpeed'))
+        self.postPause = parseInt(self.config.get('postPause')) / 1000
+        self.zReturnSpeed = parseInt(self.config.get('returnSpeed'))
+        self.prePause = parseInt(self.config.get('prePause')) / 1000
         
         
         monConfig = self.config.getDisplay(self.config.get('selectedDisplay'))
@@ -69,7 +69,7 @@ class PrintHandler(EventDispatcher):
         dim = self.getPrintDimensions()
         self.offsetX = (int(monConfig['printArea']['width']) - (self.scaleX * dim['width'])) / 2 + int(monConfig['printArea']['x'])
         self.offsetY = (int(monConfig['printArea']['height']) - (self.scaleY * dim['height'])) / 2 + int(monConfig['printArea']['y'])
-        self.state = PrintStatus.PRINTING
+        self.setState(PrintStatus.PRINTING)
         
         self.currentLayer = -1
         self.nextLayer()
@@ -129,7 +129,7 @@ class PrintHandler(EventDispatcher):
         Thread(target=self._exposureWait).start()
         self.dispatch('next-layer')
     def _moveComplete(self, evt):
-        if self.state is not PrintStatus.PRINTING:
+        if self.state is not PrintStatus.PRINTING and self.retracted == False:
             return
         if self.retracted == True:
             self.retracted = False
@@ -195,9 +195,9 @@ class PrintHandler(EventDispatcher):
         #always clone layer data so changes won't effect the original data
         return deepcopy(self.layers[num])
     def stopPrint(self):
-        self.state = PrintStatus.PAUSED
+        self.setState(PrintStatus.PAUSED)
     def continuePrint(self):
-        self.state = PrintStatus.PRINTING
+        self.setState(PrintStatus.PRINTING)
         self.nextLayer()
     def disconnect(self):
         if self.conn != None:

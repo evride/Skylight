@@ -105,8 +105,8 @@ class MonitorConfig(Tk):
             self.pxCM.set(monConfig['pixelsPerCM'])
         else:
             self.pxCM.set(50)
-        self.posXText['to'] = self.mW - int(self.pW.get())
-        self.posYText['to'] = self.mH - int(self.pH.get())
+        self.posXText['to'] = self.mW - parseInt(self.pW.get())
+        self.posYText['to'] = self.mH - parseInt(self.pH.get())
     def ratioChanged(self, *args):
         validateInt(self.pxCM, self.pxPerMM)
         
@@ -115,8 +115,8 @@ class MonitorConfig(Tk):
     def areaChanged(self, *args):
         validateInt(self.pW, self.widthText)
         validateInt(self.pH, self.heightText)
-        self.posXText['to'] = float(self.widthText['to']) - float(self.pW.get())
-        self.posYText['to'] = float(self.heightText['to']) - float(self.pH.get())
+        self.posXText['to'] = parseInt(self.widthText['to']) - parseInt(self.pW.get())
+        self.posYText['to'] = parseInt(self.heightText['to']) - parseInt(self.pH.get())
         validateInt(self.pX, self.posXText)
         validateInt(self.pY, self.posYText)
         
@@ -187,10 +187,10 @@ class MonitorConfig(Tk):
         bX = round((300 - drawW)/2)
         bY = round((300 - drawH)/2)
         
-        _pX = self.pX.get()
-        _pY = self.pY.get()
-        _pW = self.pW.get()
-        _pH = self.pH.get()
+        _pX = parseInt(self.pX.get())
+        _pY = parseInt(self.pY.get())
+        _pW = parseInt(self.pW.get())
+        _pH = parseInt(self.pH.get())
         
         self.areaCanvas.create_rectangle(bX, bY, drawW + bX, drawH + bY, fill="#000000")
         aX = round(scale * float(_pX)) + bX
@@ -199,7 +199,7 @@ class MonitorConfig(Tk):
         aH = round(scale * float(_pH)) + aY
         self.areaCanvas.create_rectangle(aX, aY, aW, aH, fill = "#FF0000", outline="#FF0000")
         
-        self.handler.window.canvas.create_rectangle(float(_pX), float(_pY), float(_pW) + float(_pX), float(_pH) + float(_pY), fill="#FF0000", outline="#FF0000")
+        self.handler.window.canvas.create_rectangle(_pX, _pY, _pW + _pX, _pH + _pY, fill="#FF0000", outline="#FF0000")
     def saveSettings(self):
         self.handler.config.saveDisplay(self.handler.config.get('selectedDisplay'), {'printArea':{'x':self.pX.get(), 'y':self.pY.get(), 'width':self.pW.get(), 'height':self.pH.get()}, 'pixelsPerCM':self.pxCM.get()})
         self.destroy()

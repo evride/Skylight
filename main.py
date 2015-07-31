@@ -107,7 +107,7 @@ def statusPressed():
             return
     elif handler.state == PrintStatus.PRINTING:
         handler.stopPrint()
-    elif handler.state == PrintStatus.PAUSE:
+    elif handler.state == PrintStatus.PAUSED:
         handler.continuePrint()
 def printNextLayer(evt):
     statusLabel.config(text="Printing layer " + str(handler.currentLayer) + " of " + str(handler.numLayers()))
@@ -402,10 +402,10 @@ class SettingsFrame(Frame):
         self.layerHeightInput.pack(anchor=W)
 
         Label(self, text="Exposure Time (ms)").pack(anchor=W)
-        self.exposureTimeInput = Spinbox(self, from_=1, to=100000, increment=100 , textvariable=self.vExposureTime)
+        self.exposureTimeInput = Spinbox(self, from_=0, to=100000, increment=100 , textvariable=self.vExposureTime)
         self.exposureTimeInput.pack(anchor=W)
         Label(self, text="Starting Exposure Time (ms)").pack(anchor=W)
-        self.startExposureInput = Spinbox(self, from_=1, to=100000, increment=100 , textvariable=self.vStartingExposureTime)
+        self.startExposureInput = Spinbox(self, from_=0, to=100000, increment=100 , textvariable=self.vStartingExposureTime)
         self.startExposureInput.pack(anchor=W)
         Label(self, text="Starting Layers").pack(anchor=W)
         self.startingLayersInput = Spinbox(self, from_=0, to=100, increment=1 , textvariable=self.vStartingLayers)
@@ -417,10 +417,10 @@ class SettingsFrame(Frame):
         self.zRetractInput = Spinbox(self, from_=0, to=20000, increment=50 , textvariable=self.vRetractDistance)
         self.zRetractInput.pack(anchor=W)
         Label(self, text="Z-Retract Speed (mm/min)").pack(anchor=W)
-        self.retractSpeedInput = Spinbox(self, from_=1, to=500, increment=50 , textvariable=self.vRetractSpeed)
+        self.retractSpeedInput = Spinbox(self, from_=0, to=500, increment=50 , textvariable=self.vRetractSpeed)
         self.retractSpeedInput.pack(anchor=W)
         Label(self, text="Z-Return Speed (mm/min)").pack(anchor=W)
-        self.returnSpeedInput = Spinbox(self, from_=1, to=500, increment=50 , textvariable=self.vReturnSpeed)
+        self.returnSpeedInput = Spinbox(self, from_=0, to=500, increment=50 , textvariable=self.vReturnSpeed)
         self.returnSpeedInput.pack(anchor=W)
         Label(self, text="Pre-Exposure Pause (ms)").pack(anchor=W)
         self.prePauseInput = Spinbox(self, from_=0, to=300000, increment=50 , textvariable=self.vPrePause)
@@ -451,7 +451,7 @@ class SettingsFrame(Frame):
         
     def layerHeightChanged(self, *args):
         validateFloat(self.vLayerHeight, self.layerHeightInput)
-        config.set('layerHeight', self.vLayerHeight.get())
+        config.set('layerHeight', parseFloat(self.vLayerHeight.get()))
         if handler.slicedLayerHeight != -1:
             '''if messagebox.askquestion('Reslice File', "The layer height has been changed since the file was last sliced. Would you like to reslice the model?"):
                 print("reslice")
@@ -466,14 +466,14 @@ class SettingsFrame(Frame):
         validateInt(self.vReturnSpeed, self.returnSpeedInput)
         validateInt(self.vPrePause, self.prePauseInput)
         
-        config.set('exposureTime', self.vExposureTime.get())
-        config.set('startingExposureTime', self.vStartingExposureTime.get())
-        config.set('startingLayers', self.vStartingLayers.get())
-        config.set('postPause', self.vPostPause.get())
-        config.set('retractDistance', self.vRetractDistance.get())
-        config.set('retractSpeed', self.vRetractSpeed.get())
-        config.set('returnSpeed', self.vReturnSpeed.get())
-        config.set('prePause', self.vPrePause.get())
+        config.set('exposureTime', parseInt(self.vExposureTime.get()))
+        config.set('startingExposureTime', parseInt(self.vStartingExposureTime.get()))
+        config.set('startingLayers', parseInt(self.vStartingLayers.get()))
+        config.set('postPause', parseInt(self.vPostPause.get()))
+        config.set('retractDistance', parseFloat(self.vRetractDistance.get()))
+        config.set('retractSpeed', parseInt(self.vRetractSpeed.get()))
+        config.set('returnSpeed', parseInt(self.vReturnSpeed.get()))
+        config.set('prePause', parseInt(self.vPrePause.get()))
 
 handler.bind('next-layer', printNextLayer)
 handler.bind('start', printStarted)

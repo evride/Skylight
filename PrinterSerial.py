@@ -120,9 +120,14 @@ class PrinterSerial(Serial, EventDispatcher):
             self.write(self.statusRequest)
         while moveCompleted == False:
             bytesReceived = 0
+            loopCount = 0
             while bytesReceived == 0:
                 bytesReceived = self.inWaiting()
                 time.sleep(.01)
+                loopCount += 1
+                if loopCount == 4 and self.statusRequest != False:
+                    self.write(self.statusRequest)
+                    loopCount = 0
             status = self.readline()
             print(status)
             if re.search(self.readyRegex, status) is not None:

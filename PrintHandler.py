@@ -26,6 +26,7 @@ class PrintHandler(EventDispatcher):
         self.config = Configuration()
         self.state = PrintStatus.SETUP
         self.ignoreLayerHeight = False
+        self.retracted = False
         self.slicedLayerHeight = -1
         self.slicedFile = None
     def showWindow(self, x, y, w, h):

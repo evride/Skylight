@@ -33,4 +33,4 @@ Download and install the [pywin32 library](http://sourceforge.net/projects/pywin
 GPLv3
 
 ##Installer
-[Skylight.msi](https://www.dropbox.com/s/0qiyhx94wy5ncft/Skylight-0.251-win32.msi?dl=0)
+[Skylight.msi](https://www.dropbox.com/s/uahanpj9ohc96ic/Skylight-0.25-win32.msi?dl=0)

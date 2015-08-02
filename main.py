@@ -84,8 +84,8 @@ def startSlicing(filename):
     t1.start()
 def sliceFile(filename, layerHeight):
     print(filename, layerHeight)
-    print("{0}/slic3r/slic3r.exe {1} --layer-height={2} --export-svg --output={3}temp.svg".format(currentDir(), filename, layerHeight, appdataDir()))
-    subprocess.call("{0}/slic3r/slic3r.exe {1} --layer-height={2} --export-svg --output={3}temp.svg".format(currentDir(), filename, layerHeight, appdataDir()))
+    print("{0}/slic3r/slic3r.exe \"{1}\" --layer-height={2} --export-svg --output=\"{3}temp.svg\"".format(currentDir(), filename, layerHeight, appdataDir()))
+    subprocess.call("{0}/slic3r/slic3r.exe \"{1}\" --layer-height={2} --export-svg --output=\"{3}temp.svg\"".format(currentDir(), filename, layerHeight, appdataDir()))
     sliceComplete()
     statusLabel.config(text="Done")
 def sliceComplete():

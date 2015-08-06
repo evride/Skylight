@@ -50,6 +50,7 @@ class PrinterSerial(Serial, EventDispatcher):
             self.statusRequest = "?"
             self.readyMsg = b"(idle|hold)(?i)"
             self.readyRegex = re.compile(self.readyMsg)
+            self.write("G91")
             self.dispatch('connected')
             return
         

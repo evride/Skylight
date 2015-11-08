@@ -47,7 +47,7 @@ if sys.platform == "win32":
     base = "Win32GUI"
 
 setup(  name = "Skylight",
-        version = "0.26",
+        version = "0.261",
         description='Skylight: A Simple DLP 3D printer controller',
         author='Evan Ridenour',
         author_email='eridenour@gmail.com',

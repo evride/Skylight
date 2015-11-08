@@ -7,7 +7,6 @@ class Configuration:
         self.data = {}
         self.displays = {}
         self.controllers = {}
-        self.setDefault()
         self.read()
     def set(self, key, value):
         self.data[key] = value
@@ -30,16 +29,16 @@ class Configuration:
             return self.displays[id]
         else:
             return {}
-    def setDefault(self):
-        self.data['layerHeight'] = 0.1
-        self.data['exposureTime'] = 500
-        self.data['startingExposureTime'] = 800
-        self.data['startingLayers'] = 3
-        self.data['postPause'] = 0
-        self.data['retractDistance'] = 500
-        self.data['retractSpeed'] = 200
-        self.data['returnSpeed'] = 500
-        self.data['prePause'] = 0
+    # def setDefault(self):
+        # self.data['layerHeight'] = 0.1
+        # self.data['exposureTime'] = 500
+        # self.data['startingExposureTime'] = 800
+        # self.data['startingLayers'] = 3
+        # self.data['postPause'] = 0
+        # self.data['retractDistance'] = 500
+        # self.data['retractSpeed'] = 200
+        # self.data['returnSpeed'] = 500
+        # self.data['prePause'] = 0
     def read(self):
         try:
             f = open(appdataDir() + 'settings.ini', 'r')

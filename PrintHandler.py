@@ -2,12 +2,17 @@ from threading import *
 import xml.etree.ElementTree as ET
 import re
 import time
+from utils import *
+from copy import deepcopy
+from Logger import *
+'''
 from tkinter import messagebox
 from PrintWindow import *
 from Configuration import *
 from PrinterSerial import *
 from utils import *
 from copy import deepcopy
+'''
 
 class PrintStatus:
     PRINTING = "running"
@@ -23,12 +28,14 @@ class PrintHandler(EventDispatcher):
         self.conn = None
         self.window = None
         self.svg = None
-        self.config = Configuration()
+        self.config = None
         self.state = PrintStatus.SETUP
         self.ignoreLayerHeight = False
         self.retracted = False
         self.slicedLayerHeight = -1
         self.slicedFile = None
+        self.app = QtWidgets.QApplication.instance()
+        self.logger = Logger()
     def showWindow(self, x, y, w, h):
         if self.window == None:
             self.window = PrintWindow(x,y,w,h)
@@ -37,7 +44,7 @@ class PrintHandler(EventDispatcher):
         self.window.clear()
         self.viewport = {'x':x, 'y':y, 'width':w, 'height':h}
     def connect(self, port, baud):
-        print("connect")
+        self.logger.log(LogType.ACTION, "connectiong")
         if self.conn is not None:
             if self.conn.connecting or self.conn.detected:
                 return
@@ -45,7 +52,6 @@ class PrintHandler(EventDispatcher):
         self.conn.bind('connected', self._comConnected)
         self.conn.bind('connection-error', self._comError)
         self.conn.bind('move-complete', self._moveComplete)
-        print("all bound")
     def startPrint(self, autoScaleCenter = False):
         if autoScaleCenter:
             self.setAutoScaleCenter()

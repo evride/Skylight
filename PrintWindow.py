@@ -1,32 +1,24 @@
-from tkinter import *
-class PrintWindow(Tk):
+import sys
+from PyQt5 import QtCore, QtGui, QtWidgets
+class PrintWindow(QtWidgets.QGraphicsView):
     def __init__(self, x, y, w, h):
-        Tk.__init__(self)
-        self.overrideredirect(1)
-        self.canvas = Canvas(self, width=w, height=h )
-        self.canvas.pack(padx=0,pady=0)
-        self.canvas.config(insertwidth=0)
-        self.canvas.config(selectborderwidth=0)
-        self.canvas.config(highlightthickness=0)
-        self.canvas.config(background="#000000")
-        self.configure(background="#000000")
         
-        self.updateDimensions(x, y, w, h)
-        #print(self.canvas.config())
+        QtWidgets.QGraphicsView.__init__(self, self.scene
         
-        #Note: cursor none works but the time.sleeps prevent it from being hidden
-        #print(self.canvas.config())
-        #self.overrideredirect(0)
-        #self.attributes("-fullscreen", True)
+        self.layout = QtWidgets.QHBoxLayout(Form)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setSpacing(0)
+        
+        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        
+        self.resize(x, y, w, h)
+        
     def preparePrint(self):
-        self.canvas.config(state=DISABLED)
-        self.canvas.config(cursor="none")      
+        self.setCursor(QtGui.QCursor(QtCore.Qt.BlankCursor))
+
     def clear(self):
-        self.canvas.delete('all')
+        self.scene.clear()
     def drawShape(self, points, color):
         self.canvas.create_polygon(*points, fill=color, outline=color)
-    def updateDimensions(self, x, y, w, h):
-        self.dimensions = {'x':x, 'y':y, 'width':w, 'height':h}
-        self.clear()
-        self.geometry("%dx%d+%d+%d" % (w, h, x, y) ) 
-        self.update()
+    def resize(self, x,y,w,h):
+        self.setGeometry(150, 100, 600, 400)

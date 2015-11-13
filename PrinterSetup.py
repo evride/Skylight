@@ -14,11 +14,12 @@ class PrinterSetup(QtWidgets.QWidget):
         self.quickView = ConfigQuickView()
         self.controllerSetup = ControllerSetup()
         self.monitorSelect = MonitorSelect()
-        
+        self.monitorCalibration = MonitorCalibration()
         self.layout.addWidget(self.quickView)
         self.quickView.bind("StartSetup", self.startNewSetup)
         
         self.controllerSetup.bind('Complete', self.stageComplete)
+        self.monitorSelect.bind('Complete', self.stageComplete)
     def startNewSetup(self, event):
         print(event)
         self.quickView.setParent(None)
@@ -27,6 +28,10 @@ class PrinterSetup(QtWidgets.QWidget):
         if event.data['stage'] == "controller":
             self.controllerSetup.setParent(None)
             self.layout.addWidget(self.monitorSelect)
+        if event.data['stage'] == "monitor-select":
+            self.monitorSelect.setParent(None)
+            self.layout.addWidget(self.monitorCalibration)
+            self.monitorCalibration.configure(self.monitorSelect.selectedMonitor)
         print(event)
         
         
@@ -137,12 +142,13 @@ class MonitorSelect(QtWidgets.QGroupBox, EventDispatcher):
         EventDispatcher.__init__(self)
         self.app = QtWidgets.QApplication.instance()
         
+        self.selectedMonitor = -1;
         self.setupUi()
     def setupUi(self):
         
-        self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
-        self.layout.setSpacing(0)
+        self.layout = QtWidgets.QVBoxLayout(self)
+        self.layout.setContentsMargins(20, 20, 20, 20)
+        self.layout.setSpacing(20)
         
 
         
@@ -151,8 +157,17 @@ class MonitorSelect(QtWidgets.QGroupBox, EventDispatcher):
         self.mScene = QtWidgets.QGraphicsScene()
         self.mGraphicsView  = QtWidgets.QGraphicsView(self.mScene)
        
+        statusFrame = QtWidgets.QFrame(frameShape=QtWidgets.QFrame.Box)
+        statusLayout = QtWidgets.QHBoxLayout(statusFrame)
+        
+        self.nextStepBtn = QtWidgets.QPushButton(text="Next")
+        
+        statusLayout.addSpacerItem(QtWidgets.QSpacerItem(300, 10, hPolicy=QtWidgets.QSizePolicy.Expanding))
+        statusLayout.addWidget(self.nextStepBtn)
+        
        
         self.layout.addWidget(self.mGraphicsView)
+        self.layout.addWidget(statusFrame)
         
         
         self.mScene.update()
@@ -202,18 +217,19 @@ class MonitorSelect(QtWidgets.QGroupBox, EventDispatcher):
         
         self.mScene.update()
         
-        self.nextStepBtn = QtWidgets.QPushButton(text="Next")
         
         self.nextStepBtn.clicked.connect(self.nextStep)
         
     def monitorChanged(self, event):    
-        for mon in self.monitorItems:
-            mon.setSelected(False)
+        for i in range(0, len(self.monitorItems)):
+            self.monitorItems[i].setSelected(False)
+            if( self.monitorItems[i] == event.target):
+                self.selectedMonitor = i
+            
         
         event.target.setSelected(True)
         print("monitorChanged", event)
     def nextStep(self, event):
-        print(event)
         self.dispatch("Complete", {'stage':'monitor-select'})
         
 class MonitorGraphicsItem(QtWidgets.QGraphicsRectItem, EventDispatcher):
@@ -254,9 +270,9 @@ class MonitorGraphicsItem(QtWidgets.QGraphicsRectItem, EventDispatcher):
     def mousePressEvent(self, event):
         self.dispatch('click')
         
-class MonitorSelect(QtWidgets.QGroupBox, EventDispatcher):
+class MonitorCalibration(QtWidgets.QGroupBox, EventDispatcher):
     def __init__(self):
-        QtWidgets.QGroupBox.__init__(self, title="Select Projector Display")
+        QtWidgets.QGroupBox.__init__(self, title="Calibrate Projector")
         EventDispatcher.__init__(self)
         self.app = QtWidgets.QApplication.instance()
         
@@ -266,3 +282,14 @@ class MonitorSelect(QtWidgets.QGroupBox, EventDispatcher):
         self.layout = QtWidgets.QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
+        
+        self.mScene = QtWidgets.QGraphicsScene()
+        self.mGraphicsView  = QtWidgets.QGraphicsView(self.mScene)
+    def configure(self, num):
+        self.monitorNum = num
+        if( self.monitorNum < self.app.desktop().screenCount() ):
+            print("works")
+        self.redraw()
+    def redraw(self):
+        print("redraw")
+        

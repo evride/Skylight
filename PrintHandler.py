@@ -5,6 +5,7 @@ import time
 from utils import *
 from copy import deepcopy
 from Logger import *
+from PyQt5 import QtCore, QtGui, QtWidgets
 '''
 from tkinter import messagebox
 from PrintWindow import *

@@ -1,11 +1,11 @@
 import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
-class PrintWindow(QtWidgets.QGraphicsView):
+class PrintWindow(QtWidgets.QWidget):
     def __init__(self, x, y, w, h):
         
-        QtWidgets.QGraphicsView.__init__(self, self.scene
+        QtWidgets.QWidget.__init__(self)
         
-        self.layout = QtWidgets.QHBoxLayout(Form)
+        self.layout = QtWidgets.QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
         
@@ -14,11 +14,13 @@ class PrintWindow(QtWidgets.QGraphicsView):
         self.resize(x, y, w, h)
         
     def preparePrint(self):
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.setCursor(QtGui.QCursor(QtCore.Qt.BlankCursor))
 
     def clear(self):
         self.scene.clear()
     def drawShape(self, points, color):
         self.canvas.create_polygon(*points, fill=color, outline=color)
-    def resize(self, x,y,w,h):
-        self.setGeometry(150, 100, 600, 400)
+    def resize(self, x, y, w, h):
+        self.setGeometry(x, y, w, h)
+        

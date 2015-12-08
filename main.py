@@ -54,14 +54,15 @@ class ObjectPane(QtWidgets.QWidget):
     def addObject(self, event):
         fname = QtWidgets.QFileDialog.getOpenFileName(self, 'Open file', None, "*.obj;*.stl")
         
-        _path, _tail = os.path.split(fname[0])
-        self.objectList.addItem(_tail)
-        self.view3D.addObject(fname[0])
-        #sliceFile(fname[0], 0.1, self.svgCreated)
-        self.thread = SliceThread()
-        self.thread.done.connect(self.svgCreated)
-        self.thread.sliceCommand("{0}/slic3r/slic3r.exe \"{1}\" --layer-height={2} --export-svg --output=\"{3}temp.svg\"".format(currentDir(), fname[0], 0.1, appdataDir()))
-        self.thread.start()
+        if (len(fname[0])):
+            _path, _tail = os.path.split(fname[0])
+            self.objectList.addItem(_tail)
+            self.view3D.addObject(fname[0])
+            #sliceFile(fname[0], 0.1, self.svgCreated)
+            self.thread = SliceThread()
+            self.thread.done.connect(self.svgCreated)
+            self.thread.sliceCommand("{0}/slic3r/slic3r.exe \"{1}\" --layer-height={2} --export-svg --output=\"{3}temp.svg\"".format(currentDir(), fname[0], 0.1, appdataDir()))
+            self.thread.start()
         
     def svgCreated(self):
         handler = PrintHandler()

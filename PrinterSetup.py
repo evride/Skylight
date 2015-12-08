@@ -1,5 +1,6 @@
 from PyQt5 import QtCore, QtWidgets, QtGui, Qt
 from utils import *
+from PrintWindow import PrintWindow
 import serial
 from serial.tools.list_ports import comports
 
@@ -32,8 +33,15 @@ class PrinterSetup(QtWidgets.QWidget):
             self.monitorSelect.setParent(None)
             self.layout.addWidget(self.monitorCalibration)
             self.monitorCalibration.configure(self.monitorSelect.selectedMonitor)
+            
+            
+            
+            dim = self.app.desktop().screenGeometry(self.monitorSelect.selectedMonitor)
+            self.pWindow = PrintWindow(dim.x(), dim.y(), dim.width(), dim.height())
+            self.pWindow.show()
+            
+            
         print(event)
-        
         
 class ConfigQuickView(QtWidgets.QWidget, EventDispatcher):
     def __init__(self):
@@ -196,24 +204,27 @@ class MonitorSelect(QtWidgets.QGroupBox, EventDispatcher):
                 maxHeight = dim.height()
             
             pItem = MonitorGraphicsItem(dim.width(), dim.height(), i)
+            pItem.setX(dim.x() * 1.05);
+            pItem.setY(dim.y() * 1.05);
             pItem.bind('click', self.monitorChanged)
             self.monitorItems.append(pItem)
             self.mScene.addItem(pItem)
+            print(pItem)
            
 
-        scaleX = (self.mGraphicsView.width() - 80) / (maxX - minX)
-        scaleY = (self.mGraphicsView.height() - 80) / (maxY - minY)
+        scaleX = (self.mGraphicsView.width() - 80) / (maxX - minX);
+        scaleY = (self.mGraphicsView.height() - 80) / (maxY - minY);
         
         
         
         
-        maxScaleX = (self.mGraphicsView.width() * 0.5) / maxWidth
-        maxScaleY = (self.mGraphicsView.height() * 0.5) / maxHeight
+        maxScaleX = (self.mGraphicsView.width() * 0.5) / maxWidth;
+        maxScaleY = (self.mGraphicsView.height() * 0.5) / maxHeight;
         
         scale = min(scaleX, scaleY, maxScaleX, maxScaleY)
         
         
-        self.mGraphicsView.scale(scale, scale)
+        self.mGraphicsView.scale(scale * 0.9, scale * 0.9)
         
         self.mScene.update()
         
@@ -275,21 +286,40 @@ class MonitorCalibration(QtWidgets.QGroupBox, EventDispatcher):
         QtWidgets.QGroupBox.__init__(self, title="Calibrate Projector")
         EventDispatcher.__init__(self)
         self.app = QtWidgets.QApplication.instance()
+        self.monitorNum = -1
         
         self.setupUi()
     def setupUi(self):
         
         self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(0)
         
         self.mScene = QtWidgets.QGraphicsScene()
-        self.mGraphicsView  = QtWidgets.QGraphicsView(self.mScene)
+        self.mGraphicsView  = QtWidgets.QGraphicsView(self.mScene, frameShape=QtWidgets.QFrame.NoFrame)
+        
+        self.monitorGraphic = QtWidgets.QGraphicsRectItem()
+        self.monitorGraphic.setBrush(QtGui.QBrush(QtGui.QColor('#333')))
+        self.mScene.addItem(self.monitorGraphic)
+            
+            
+        self.layout.addWidget(self.mGraphicsView)
     def configure(self, num):
         self.monitorNum = num
         if( self.monitorNum < self.app.desktop().screenCount() ):
-            print("works")
+            dim = self.app.desktop().screenGeometry(self.monitorNum)
+            self.mWidth = dim.width()
+            self.mHeight = dim.height()
         self.redraw()
+    def resizeEvent(self, evt):
+        print(evt)
+        if (self.monitorNum >= 0):
+            self.redraw()
     def redraw(self):
         print("redraw")
+        scale = min(self.mGraphicsView.width() / (self.mWidth + 10), self.mGraphicsView.height() / (self.mHeight + 10))
+        self.monitorGraphic.setRect(0, 0, self.mWidth * scale, self.mHeight * scale)
+        print(scale, self.mGraphicsView.width(), self.mGraphicsView.height(), self.monitorGraphic.rect()) 
+        self.mScene.setSceneRect(QtCore.QRectF(0, 0, self.mGraphicsView.width(), self.mGraphicsView.height()))
+        
         

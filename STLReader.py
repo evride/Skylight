@@ -28,6 +28,12 @@ class STLReader():
             
             ])
             self.file.read(2) #typically unused 16bit uint
+    def translate(self, x, y, z):
+        for i in range(0, self.numTriangles):
+            for a in range(1,4):
+                self.triangles[i][a][0] += x
+                self.triangles[i][a][1] += y
+                self.triangles[i][a][2] += z
     def dimensions(self):
         dim = {'minX':None, 'minY':None, 'minZ':None, 'maxX':None, 'maxY':None, 'maxZ':None}
         

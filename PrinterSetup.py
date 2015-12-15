@@ -3,6 +3,8 @@ from utils import *
 from PrintWindow import PrintWindow
 import serial
 from serial.tools.list_ports import comports
+import math
+from TestSerial import *
 
 class PrinterSetup(QtWidgets.QWidget):
     def __init__(self,app):
@@ -22,7 +24,6 @@ class PrinterSetup(QtWidgets.QWidget):
         self.controllerSetup.bind('Complete', self.stageComplete)
         self.monitorSelect.bind('Complete', self.stageComplete)
     def startNewSetup(self, event):
-        print(event)
         self.quickView.setParent(None)
         self.layout.addWidget(self.controllerSetup)
     def stageComplete(self, event):
@@ -88,6 +89,7 @@ class ControllerSetup(QtWidgets.QWidget, EventDispatcher):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
         EventDispatcher.__init__(self)
+        self.serial = None
         self.setupUi()
         self.populateComPorts()
     def setupUi(self):
@@ -105,7 +107,7 @@ class ControllerSetup(QtWidgets.QWidget, EventDispatcher):
         
         self.comPortSelect = QtWidgets.QComboBox()
         self.baudRateSelect = QtWidgets.QComboBox()
-        self.connectBtn = QtWidgets.QPushButton(text="Connect")
+        self.connectBtn = QtWidgets.QPushButton(text="Test Connection")
         self.nextStepBtn = QtWidgets.QPushButton(text="Next")
         
         
@@ -131,18 +133,31 @@ class ControllerSetup(QtWidgets.QWidget, EventDispatcher):
         statusLayout.addSpacerItem(QtWidgets.QSpacerItem(300, 10, hPolicy=QtWidgets.QSizePolicy.Expanding))
         statusLayout.addWidget(self.nextStepBtn)
     def populateComPorts(self):
-        self.comPorts = serial.tools.list_ports.comports()
-                
-        for i in self.comPorts:
+        comPorts = serial.tools.list_ports.comports()
+        self.comPorts = []
+        for i in comPorts:
+            self.comPorts.append(i)
             if i[1] == 'n/a':
                 self.comPortSelect.addItem(i[0])
             else:
                 self.comPortSelect.addItem('[' + i[0] + '] - ' + i[1])
     def connectClicked(self, event):
-        self.dispatch("Connect")
-        print("connect")
+        if(self.serial):
+            self.serial.close()
+            self.connectBtn.setText("Test Connection")
+            self.serial = None
+        else:
+            self.connectBtn.setText("Disconnect")
+            self.dispatch("Connect")
+            com = self.comPorts[self.comPortSelect.currentIndex()][0]
+            baud = self.baudRateSelect.currentText()
+            self.serial = TestSerial(com, baud)
+            self.serial.bind('data', self.comData)
     def nextStep(self, event):
         self.dispatch("Complete", {'stage':'controller'})
+    def comData(self, event):
+        print(event.data)
+        self.connectionLog.append(event.data.decode('utf-8'))
 
 class MonitorSelect(QtWidgets.QGroupBox, EventDispatcher):
     def __init__(self):
@@ -291,7 +306,7 @@ class MonitorCalibration(QtWidgets.QGroupBox, EventDispatcher):
         self.setupUi()
     def setupUi(self):
         
-        self.layout = QtWidgets.QHBoxLayout(self)
+        self.layout = QtWidgets.QVBoxLayout(self)
         self.layout.setContentsMargins(10, 10, 10, 10)
         self.layout.setSpacing(0)
         
@@ -301,25 +316,82 @@ class MonitorCalibration(QtWidgets.QGroupBox, EventDispatcher):
         self.monitorGraphic = QtWidgets.QGraphicsRectItem()
         self.monitorGraphic.setBrush(QtGui.QBrush(QtGui.QColor('#333')))
         self.mScene.addItem(self.monitorGraphic)
-            
-            
+        
+        self.viewableAreaGraphic = QtWidgets.QGraphicsRectItem()
+        self.viewableAreaGraphic.setBrush(QtGui.QBrush(QtGui.QColor('#F00')))
+        self.lines = []
+        
+        
+        self.dimensionsFrame = QtWidgets.QFrame()
+        
+        self.labelOffsetLeft = QtWidgets.QLabel("Offset Left")
+        self.inputOffsetLeft = QtWidgets.QSpinBox(suffix="px", maximum=100, minimum=0)
+        
+        self.labelOffsetTop = QtWidgets.QLabel("Offset Top")
+        self.inputOffsetTop = QtWidgets.QSpinBox(suffix="px", maximum=100, minimum=0)
+        
+        self.labelViewWidth = QtWidgets.QLabel("Print Area Width")
+        self.inputViewWidth = QtWidgets.QSpinBox(suffix="px", maximum=100, minimum=1)
+        
+        self.labelViewHeight = QtWidgets.QLabel("Print Area Height")
+        self.inputViewHeight = QtWidgets.QSpinBox(suffix="px", maximum=100, minimum=1)
+        
+        dimLayout = QtWidgets.QVBoxLayout(self.dimensionsFrame);
+        
+        dimLayout.addWidget(self.labelOffsetLeft)
+        dimLayout.addWidget(self.inputOffsetLeft)
+        
+        dimLayout.addWidget(self.labelOffsetTop)
+        dimLayout.addWidget(self.inputOffsetTop)
+        
+        dimLayout.addWidget(self.labelViewWidth)
+        dimLayout.addWidget(self.inputViewWidth)
+        
+        dimLayout.addWidget(self.labelViewHeight)
+        dimLayout.addWidget(self.inputViewHeight)
+        
+        
         self.layout.addWidget(self.mGraphicsView)
+        self.layout.addWidget(self.dimensionsFrame)
+    def setState(self, state):
+        self.state = state
+        if (self.state == "area"):
+            
+        
     def configure(self, num):
         self.monitorNum = num
         if( self.monitorNum < self.app.desktop().screenCount() ):
             dim = self.app.desktop().screenGeometry(self.monitorNum)
             self.mWidth = dim.width()
             self.mHeight = dim.height()
+            self.inputOffsetLeft.setMaximum(self.mWidth - 1)
+            self.inputOffsetTop.setMaximum(self.mHeight - 1)
+            self.inputViewWidth.setMaximum(self.mWidth)
+            self.inputViewHeight.setMaximum(self.mHeight)
+            
+            self.inputViewWidth.setValue(math.ceil(self.mWidth * .75))
+            self.inputViewHeight.setValue(math.ceil(self.mHeight * .75))
+            self.inputOffsetLeft.setValue(math.floor(self.mWidth * .125))
+            self.inputOffsetTop.setValue(math.floor(self.mHeight * .125))
+            
         self.redraw()
     def resizeEvent(self, evt):
-        print(evt)
         if (self.monitorNum >= 0):
             self.redraw()
     def redraw(self):
-        print("redraw")
         scale = min(self.mGraphicsView.width() / (self.mWidth + 10), self.mGraphicsView.height() / (self.mHeight + 10))
         self.monitorGraphic.setRect(0, 0, self.mWidth * scale, self.mHeight * scale)
-        print(scale, self.mGraphicsView.width(), self.mGraphicsView.height(), self.monitorGraphic.rect()) 
-        self.mScene.setSceneRect(QtCore.QRectF(0, 0, self.mGraphicsView.width(), self.mGraphicsView.height()))
+        offsetX = (self.mGraphicsView.width() - self.mWidth * scale) / 2
+        offsetY = (self.mGraphicsView.height() - self.mHeight * scale) / 2
+        
+        self.mScene.setSceneRect(QtCore.QRectF(-offsetX, -offsetY, self.mGraphicsView.width(), self.mGraphicsView.height()))
+    def redrawArea(self):
+        vX = self.inputOffsetLeft.value()
+        vY = self.inputOffsetTop.value()
+        vW = self.inputViewWidth.value()
+        vH = self.inputViewHeight.value()
+        self.viewableAreaGraphic.setRect(vX, vY, vW, vH)
+    def redrawGrid(self):
+        
         
         

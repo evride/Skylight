@@ -11,6 +11,14 @@ class PrintWindow(QtWidgets.QWidget):
         
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         
+        self.scene = QtWidgets.QGraphicsScene()
+        self.view  = QtWidgets.QGraphicsView(self.scene, frameShape=QtWidgets.QFrame.NoFrame)
+        
+        
+        self.viewableAreaGraphic = QtWidgets.QGraphicsRectItem()
+        self.viewableAreaGraphic.setBrush(QtGui.QBrush(QtGui.QColor('#F00')))
+        
+        self.layout.addWidget(self.view)
         self.resize(x, y, w, h)
         
     def preparePrint(self):
@@ -24,3 +32,13 @@ class PrintWindow(QtWidgets.QWidget):
     def resize(self, x, y, w, h):
         self.setGeometry(x, y, w, h)
         
+    def showArea(self, x, y, w, h):
+        print(self.viewableAreaGraphic.parentItem())
+        if (self.viewableAreaGraphic.parentItem() is None):
+            self.scene.addItem(self.viewableAreaGraphic)
+        self.viewableAreaGraphic.setRect(x, y, w, h)       
+        
+    def hideArea(self):
+        print(self.viewableAreaGraphic.parentItem())
+        if (self.viewableAreaGraphic.parentItem()):
+            self.scene.remove(self.viewableAreaGraphic)
